@@ -19,6 +19,11 @@ This project aims to be an exercise to discuss about software engineering techni
 * 🏗️ [Implementation details](#-implementation-details)
   - 📦 [Dependencies](#-dependencies)
 	- 🗄️ [Storage](#-storage)
+* ⏯️ [Running](#-running)
+* ✅ [Testing](#-testing)
+  - 🧪 [Manual](#-manual)
+	- ♻️ [Automated](#-automated)
+	- 💯 [Coverage](#-coverage)
 * 📚 [References](#-references)
 
 ## 📹 Overview
@@ -287,6 +292,33 @@ And also, following ones for the development:
 ### 🗄️ Storage
 A Docker container it's not persistent itself, so the Docker Compose file specify a volume to make the database persistent, that volume can be mapped to a host directory.
 
+## ⏯️ Running
+In order to run the application locally it can be done by using the command line with docker. You can either:
+* Clone [this Git repository][note-vook-repo] and build the image locally
+```sh
+git clone https://github.com/zatarain/note-vook.git
+cd note-book
+docker compose up --build
+```
+
+* Download the [latest built of the image][note-vook-image] from Docker Hub
+```
+docker run --name note-vook -p 4000:4000 zatarain/note-vook:latest
+```
+
+Then you can follow the steps to play manually with the API with the steps in next section.
+
+## ✅ Testing
+...
+### 🧪 Manual
+...
+### ♻️ Automated
+...
+### 💯 Coverage
+You can follow the test coverage reports of this project in the CodeCov website:
+
+![Icicle][codecov-icicle]
+
 ## 📚 References
 * [SQLite Data Types][sqlite-data-types]
 * [GORM Documentation][gorm-docs]
@@ -295,11 +327,14 @@ A Docker container it's not persistent itself, so the Docker Compose file specif
 * [Monkey Patching Documentation][monkey-docs]
 * [Crypto/Bcrypt Documentation][bcrypt-docs]
 * [GoJWT Documentation][go-jwt-docs]
+* [GoDotEnv][go-dotenv-docs]
 
 [what-is-api]: aws.amazon.com/what-is/api
 [what-is-jwt]: https://jwt.io/introduction
 [docker]: https://www.docker.com
 [docker-hub]: https://hub.docker.com
+[note-vook-image]: https://hub.docker.com/repository/docker/zatarain/note-vook/tags
+[note-vook-repo]: https://github.com/zatarain/note-vook
 [go-lang]: https://go.dev
 [sqlite]: https://www.sqlite.org
 [sqlite-data-types]: https://www.sqlite.org/datatype3.html
@@ -310,3 +345,7 @@ A Docker container it's not persistent itself, so the Docker Compose file specif
 [monkey-docs]: https://github.com/bouk/monkey#readme
 [bcrypt-docs]: https://pkg.go.dev/golang.org/x/crypto/bcrypt
 [go-jwt-docs]: https://github.com/golang-jwt/jwt#readme
+[go-dotenv-docs]: https://github.com/joho/godotenv#readme
+[codecov-sunburst]: https://codecov.io/gh/zatarain/note-vook/branch/main/graphs/sunburst.svg?token=bufQuVyLCi
+[codecov-grid]: https://codecov.io/gh/zatarain/note-vook/branch/main/graphs/tree.svg?token=bufQuVyLCi
+[codecov-icicle]: https://codecov.io/gh/zatarain/note-vook/branch/main/graphs/icicle.svg?token=bufQuVyLCi
