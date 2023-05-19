@@ -37,7 +37,8 @@ The API should be able to manage a database for the videos and each video may ha
 ### 🤔 Assumptions
 This is a small example and it's not taking care about some corner case scenarios like following:
  * The videos can only be annotated by the user creator.
- * A video with the same link can be added multiple times.
+ * A video with the same link can be added multiple times by different users.
+ * It's been assumed that the annotation type it's some sort of category and each annotation can only be of one type.
  * Users were not part of the original requirements, but I added them as makes simpler the way to explain the authorisation layer.
  * The user names and passwords aren't validated properly, so the client can provide any input except an empty string.
  * Users can anonymously be created in the system.
@@ -89,7 +90,7 @@ erDiagram
 
 As we can see in the diagram, a `User` _may own_ several `Video`s, which is made possible with the user of the foreign key `user_id` within the `Video` entity. Then, a `Video` _may have_ many `Annotation`s thanks to the foreign key `video_id`.
 
-The API manages the persistency of the data with a 🪶 [SQLite][sqlite] database, which is a simple local storage database. So, the records for entities shown in the diagram will be stored as rows in tables. SQLite manages a reduced set of data types so, we will describe the actual data type used in following subsections.
+The API manages the persistency of the data with a 🪶 [SQLite][sqlite] database, which is a simple local storage database. So, the records for entities shown in the diagram will be stored as rows in tables. SQLite manages a [reduced set of data types][sqlite-data-types] so, we will use the actual data type (affinity) used in following subsections.
 
 #### 🎞️ Video
 This entity will represent the videos in the system and each record will be stored in the table `videos` which has following fields:
@@ -126,8 +127,8 @@ The records for this entity will represent the users in the system and each reco
 |    | Name          |     Type    | Description                                   |
 |:--:| :---          |    :----:   | :---                                          |
 | 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the user          |
-| ✳️ | `nickname`    | `INTEGER`   | Nickname of the user. Unique along this table |
-| 🔢 | `password`    | `INTEGER`   | Annotation type or category                   |
+| ✳️ | `nickname`    | `TEXT`      | Nickname of the user. Unique along this table |
+| 🔢 | `password`    | `TEXT`      | Hash for the password of the user             |
 | 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time      |
 | 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time   |
 
@@ -146,7 +147,7 @@ We are using following libraries for the implementation:
  * **`gorm`.** A library for Object Relational Model (ORM) in order to represent the records in the database as relational objects.
  * **`gorm/drivers/sqlite`.** Driver that manage SQLite dialect and connect to the database.
  * **`godotenv`.** This CLI tool allows us to load environment configuration via `.env` files and run a command.
- * **`crypto/bcrypt`.** To make use of `base64` encoding and decoding for the authentication token.
+ * **`crypto/bcrypt`.** This is part of the standard go library. It's to make use of hashing when sign up and login.
  * **`golang-jwt`.** To generate and use the authorisation tokens.
 
 And also, following ones for the development:
@@ -158,6 +159,13 @@ And also, following ones for the development:
 A Docker container it's not persistent itself, so the Docker Compose file specify a volume to make the database persistent, that volume can be mapped to a host directory.
 
 ## 📚 References
+* [SQLite Data Types][sqlite-data-types]
+* [GORM Documentation][gorm-docs]
+* [Gin Documentation][gin-docs]
+* [Testify Documentation][testify-docs]
+* [Monkey Patching Documentation][monkey-docs]
+* [Crypto/Bcrypt Documentation][bcrypt-docs]
+* [GoJWT Documentation][go-jwt-docs]
 
 [what-is-api]: aws.amazon.com/what-is/api
 [what-is-jwt]: https://jwt.io/introduction
@@ -165,3 +173,11 @@ A Docker container it's not persistent itself, so the Docker Compose file specif
 [docker-hub]: https://hub.docker.com
 [go-lang]: https://go.dev
 [sqlite]: https://www.sqlite.org
+[sqlite-data-types]: https://www.sqlite.org/datatype3.html
+[gorm-docs]: https://gorm.io/docs/
+[gin-docs]: https://gin-gonic.com/docs/
+[mockery-docs]: https://vektra.github.io/mockery/
+[testify-docs]: https://github.com/stretchr/testify#readme
+[monkey-docs]: https://github.com/bouk/monkey#readme
+[bcrypt-docs]: https://pkg.go.dev/golang.org/x/crypto/bcrypt
+[go-jwt-docs]: https://github.com/golang-jwt/jwt#readme
