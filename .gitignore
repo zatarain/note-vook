@@ -22,3 +22,6 @@ go.work
 
 # Database
 data/*
+
+# VSCode files
+.vscode/*
