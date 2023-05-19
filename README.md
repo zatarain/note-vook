@@ -196,15 +196,58 @@ Database-->>-GORM: returns query result
 GORM-->>-UsersController: returns populated @user
 UsersController->>+bcrypt: CompareHashAndPassword(@credentials.Password)
 bcrypt-->>-UsersController: returns comparison result
-UsersController->>+JWT: generates token
-JWT-->>-UsersController: returns @jwt.Token
+UsersController->>+JWT: generates token signed with SECRET_TOKEN_KEY
+JWT-->>-UsersController: returns signed @jwt.Token(7 days for expiration)
 UsersController-->>-gin.Engine: HTTP 200 OK and message
 gin.Engine->>-Unknown: HTTP 200 OK JSON with message and Authorisation Cookie with @jwt.Token
 ```
 
 #### 🔀 Authorised requests
+Following diagram describes the happy path for any other operation that needs authorisation, meaning after user has been logged in:
 ```mermaid
 sequenceDiagram
+
+actor KnownUser
+participant gin.Engine
+participant UsersController
+participant User
+participant GORM
+participant AnotherController
+participant AnotherModel
+participant Database
+participant JWT
+
+KnownUser->>+gin.Engine: GET /another-controller/action @JSON: credentials
+gin.Engine->>+UsersController: Authorise(@gin.Context)
+UsersController->>+gin.Engine: get Authorisation cookie
+gin.Engine->>-UsersController: returns @cookie
+UsersController->>+JWT: Parse @cookie.Value
+JWT-->>+UsersController: checks algorithm for consistency and ask for key
+UsersController-->>-JWT: result for algorithm check and SECRET_TOKEN_KEY
+JWT-->>+UsersController: decodes the token
+UsersController-->>-JWT: returns Parsed and Decoded @jwt.Token
+
+UsersController->>UsersController: Extracts claims and check expiration
+UsersController->>+User: New instance with Nickname only
+User-->>-UsersController: returns @user with Nickname only
+UsersController->>+GORM: First(@user, @user.Nickname)
+GORM->>GORM: generates SQL Statement
+GORM->>+Database: query(SELECT * FROM users WHERE nickname = @user.Nickname)
+Database-->>-GORM: returns query result
+GORM-->>-UsersController: returns populated @user 
+UsersController-->>-gin.Engine: @user within the @gin.Context
+
+gin.Engine->>+AnotherController: ActionHandler (@gin.Context with @user)
+AnotherController->>+AnotherModel: do something
+AnotherModel-->>-AnotherController: returns some result
+AnotherController->>+GORM: do something
+GORM->>GORM: generates SQL statement
+GORM->>+Database: query (generated SQL statement)
+Database-->-GORM: returns query result
+GORM-->-AnotherController: returns query result
+AnotherController->>AnotherController: May do something else (e. g. business logic)
+AnotherController-->>-gin.Engine: HTTP 200 OK and message
+gin.Engine->>-KnownUser: HTTP 200 OK JSON with message
 ```
 
 ### 🔚 End-points
