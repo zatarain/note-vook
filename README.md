@@ -12,6 +12,9 @@ This project aims to be an exercise to discuss about software engineering techni
 		* ✍🏽 [Annotation](#-annotation)
 		* 👤 [User](#-user)
 	- 🔀 [Workflows](#-workflows)
+	  * 🔀 [User sign up](#-user-sign-up)
+	  * 🔀 [User login](#-user-login)
+	  * 🔀 [Authorised requests](#-authorised-requests)
 	- 🔚 [End-points](#-end-points)
 * 🏗️ [Implementation details](#-implementation-details)
   - 📦 [Dependencies](#-dependencies)
@@ -134,7 +137,72 @@ The records for this entity will represent the users in the system and each reco
 | 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time   |
 
 ### 🔀 Workflows
-...
+There are three general workflows in this API: user sign up, user login and all the other operations that require authorisation.
+
+#### 🔀 User sign up
+Following diagram describes the happy path for a user signup operation:
+```mermaid
+sequenceDiagram
+
+actor Unknown
+participant gin.Engine
+participant UsersController
+participant User
+participant bcrypt
+participant GORM
+participant Database
+
+Unknown->>+gin.Engine: POST /signup @JSON: credentials
+gin.Engine->>+UsersController: Signup(@gin.Context)
+UsersController->>+gin.Engine: bind(@JSON credentials)
+gin.Engine->>-UsersController: returns @credentials
+UsersController->>+bcrypt: Hash(@credentials.Password)
+bcrypt-->>-UsersController: returns Hashed Password
+UsersController->>+User: create instance (@credentials)
+User-->>-UsersController: returns @user
+UsersController->>+GORM: Create(@user)
+GORM->>GORM: generates SQL Statement
+GORM->>+Database: query(INSERT INTO users(...) VALUES(...))
+Database-->>-GORM: returns query result
+GORM-->>-UsersController: populated @user
+UsersController-->>-gin.Engine: HTTP 201 OK and message
+gin.Engine->>-Unknown: HTTP 201 Created (JSON with message)
+```
+
+#### 🔀 User login
+Following diagram describes the happy path for a user login operation:
+```mermaid
+sequenceDiagram
+
+actor Unknown
+participant gin.Engine
+participant UsersController
+participant User
+participant bcrypt
+participant GORM
+participant Database
+participant JWT
+
+Unknown->>+gin.Engine: POST /login @JSON: credentials
+gin.Engine->>+UsersController: Login(@gin.Context)
+UsersController->>+gin.Engine: bind(@JSON credentials)
+gin.Engine->>-UsersController: returns @credentials
+UsersController->>+User: create empty instance
+User-->>-UsersController: returns empty @user
+UsersController->>+GORM: First(@user, @user.Nickname)
+GORM->>GORM: generates SQL Statement
+GORM->>+Database: query(SELECT * FROM users WHERE nickname = @user.Nickname)
+Database-->>-GORM: returns query result
+GORM-->>-UsersController: returns populated @user
+UsersController->>+bcrypt: CompareHashAndPassword(@credentials.Password)
+bcrypt-->>-UsersController: returns comparison result
+UsersController->>+JWT: generates token
+JWT-->>-UsersController: returns @jwt.Token
+UsersController-->>-gin.Engine: HTTP 200 OK and message
+gin.Engine->>-Unknown: HTTP 200 OK JSON with message and Authorisation Cookie with @jwt.Token
+```
+
+#### 🔀 Authorised requests
 ```mermaid
 sequenceDiagram
 ```
