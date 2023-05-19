@@ -179,9 +179,9 @@ participant gin.Engine
 participant UsersController
 participant User
 participant bcrypt
+participant JWT
 participant GORM
 participant Database
-participant JWT
 
 Unknown->>+gin.Engine: POST /login @JSON: credentials
 gin.Engine->>+UsersController: Login(@gin.Context)
@@ -211,21 +211,21 @@ actor KnownUser
 participant gin.Engine
 participant UsersController
 participant User
+participant JWT
 participant GORM
 participant AnotherController
 participant AnotherModel
 participant Database
-participant JWT
 
 KnownUser->>+gin.Engine: GET /another-controller/action @JSON: credentials
 gin.Engine->>+UsersController: Authorise(@gin.Context)
 UsersController->>+gin.Engine: get Authorisation cookie
 gin.Engine->>-UsersController: returns @cookie
+
 UsersController->>+JWT: Parse @cookie.Value
 JWT-->>+UsersController: checks algorithm for consistency and ask for key
 UsersController-->>-JWT: result for algorithm check and SECRET_TOKEN_KEY
-JWT-->>+UsersController: decodes the token
-UsersController-->>-JWT: returns Parsed and Decoded @jwt.Token
+JWT-->>-UsersController: decodes the token and returns Parsed and Decoded @jwt.Token
 
 UsersController->>UsersController: Extracts claims and check expiration
 UsersController->>+User: New instance with Nickname only
