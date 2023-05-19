@@ -4,18 +4,19 @@
 This project aims to be an exercise to discuss about software engineering technical topics like software development, pair programming, testing, deployment, etcetera. More specifically, to discuss the development of an [API (Application Programming Interface)][what-is-api] to **manage annotations for videos** implemented written in [go programming language][go-lang].
 ## 📂 Table of content
 * 📹 [Overview](#📹-overview)
-	- ☑️ [Requirements](#☑️-requirements)
-	- 🤔 [Assumptions](#🤔-assumptions)
-* 📐 [Design](#📐-design)
-	- 📊 [Data model](#📊-data-model)
-		* 🎞️ [Video](#🎞️-video)
-		* ✍🏽 [Annotation](#✍🏽-annotation)
-		* 👤 [User](#👤-user)
-	- 🔀 [Workflows](#🔀-workflows)
-* 🏗️ [Implementation details](#🏗️-implementation-details)
-  - 📦 [Dependencies](#📦-dependencies)
-	- 🗄️ [Storage](#🗄️-storage)
-* 📚 [References](#📚-references)
+	- ☑️ [Requirements](#-requirements)
+	- 🤔 [Assumptions](#-assumptions)
+* 📐 [Design](#-design)
+	- 📊 [Data model](#-data-model)
+		* 🎞️ [Video](#-video)
+		* ✍🏽 [Annotation](#-annotation)
+		* 👤 [User](#-user)
+	- 🔀 [Workflows](#-workflows)
+	- 🔚 [End-points](#-end-points)
+* 🏗️ [Implementation details](#-implementation-details)
+  - 📦 [Dependencies](#-dependencies)
+	- 🗄️ [Storage](#-storage)
+* 📚 [References](#-references)
 
 ## 📹 Overview
 This simple API aims to manage a video annotations database, this means we will have a collection of videos and we will be able to add text notes for some given interval of time of the videos. Additionally we would like to manage some basic security layer based-on [JWT (JSON Web Token)][what-is-jwt]. The application should be ready to deploy as a [Docker][docker] container, so we need to generate an image for it available to download in [Docker Hub][docker-hub].
@@ -46,7 +47,7 @@ This is a small example and it's not taking care about some corner case scenario
  * Even if we added the security layer with the authorisation process, this is not secure enough, there are several flaws (e. g. non-secure cookie, non-password charset checking, lack of HTTPS certificates, etcetera), but it's implemented in this way just for didactical purposes.
 
 ## 📐 Design
-The architecture will be a HTTP microservice that will consume some configuration and use ORM to represent the records in the database tables and also a Model-Controller (MC) pattern design, so the controllers will contain the handlers for the API requests, while the models will represent the data. The service will be stateless, so we won't hold any state (e. g. session management) on the server side, instead we will use authorisation tokens.
+The architecture will be a HTTP API for a microservice that will consume some configuration and use ORM to represent the records in the database tables and also a Model-Controller (MC) pattern design, so the controllers will contain the handlers for the API requests, while the models will represent the data. The service will be stateless, so we won't hold any state (e. g. session management) on the server side, instead we will use authorisation tokens.
 
 ### 📊 Data model
 In order to store and manipulate the data needed the API will rely on the entities shown in following diagram:
@@ -137,6 +138,23 @@ The records for this entity will represent the users in the system and each reco
 ```mermaid
 sequenceDiagram
 ```
+
+### 🔚 End-points
+The input for all the API end-points will be always in JSON format and the Cookie `Authorisation` JWT token in most of the cases and the output will be in the same format. The end-points for the API are described in following table:
+
+| Method   | Address            | Description                             | Success Status | Possible Failure Status                                |
+| :---:    | :---               | :----                                   | :---:          | :---                                                   |
+| `HEAD`   | `/health`          | Service health check                    | `200 OK`       | `* Any`                                                |
+| `POST`   | `/signup`          | User sign up to create users            | `201 Created`  | `400 Bad Request`                                      |
+| `POST`   | `/login`           | User login and get authorisation token  | `200 OK`       | `400 Bad Request`, `500 Internal Server Error`         |
+| `GET`    | `/videos`          | List of all videos owned by logged user | `200 OK`       | `401 Unauthorised`                                     |
+| `POST`   | `/videos`          | Create a video record in the system     | `200 Created`  | `401 Unauthorised`, `400 Bad Request`                  |
+| `GET`    | `/videos/:id`      | Get video details and its annotations   | `200 OK`       | `401 Unauthorised`, `404 Not Found`                    |
+| `PATCH`  | `/videos/:id`      | Edit details for a given video          | `200 OK`       | `401 Unauthorised`, `400 Bad Request`, `404 Not Found` |
+| `DELETE` | `/videos/:id`      | Delete a video from the system          | `200 OK`       | `401 Unauthorised`, `404 Not Found`                    |
+| `POST`   | `/annotations`     | Create a annotation record for a video  | `200 Created`  | `401 Unauthorised`, `400 Bad Request`                  |
+| `PATCH`  | `/annotations/:id` | Edit details for an annotation          | `200 OK`       | `401 Unauthorised`, `400 Bad Request`, `404 Not Found` |
+| `DELETE` | `/annotations/:id` | Delete an annotation                    | `200 OK`       | `401 Unauthorised`, `404 Not Found`                    |
 
 ## 🏗️ Implementation details
 We are using Golang as programming language for the implementation of the API operations. And the database is a single table in SQLite stored locally.
