@@ -22,4 +22,7 @@ func Setup(server gin.IRouter) {
 	server.POST("/login", users.Login)
 	server.GET("/videos", users.Authorise, videos.Index)
 	server.POST("/videos", users.Authorise, videos.Add)
+	server.GET("/videos/:id", users.Authorise, videos.View)
+	server.PATCH("/videos/:id", users.Authorise, videos.Edit)
+	server.DELETE("/videos/:id", users.Authorise, videos.Delete)
 }

@@ -24,6 +24,13 @@ func (videos *VideosController) Index(context *gin.Context) {
 }
 
 type AddVideoContract struct {
+	Title       string `json:"title" binding:"required"`
+	Description string `json:"description" binding:"required"`
+	Link        string `json:"link" binding:"required"`
+	Duration    int    `json:"duration" binding:"required"`
+}
+
+type EditVideoContract struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Link        string `json:"link"`
@@ -62,5 +69,71 @@ func (videos *VideosController) Add(context *gin.Context) {
 	context.JSON(http.StatusCreated, gin.H{
 		"message": "Video successfully added",
 		"data":    video,
+	})
+}
+
+func (videos *VideosController) View(context *gin.Context) {
+	id := context.Param("id")
+	user := CurrentUser(context)
+	var video models.Video
+	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
+	if searching != nil {
+		context.JSON(http.StatusNotFound, gin.H{
+			"summary": "Video not found",
+			"details": searching.Error(),
+		})
+		return
+	}
+
+	context.JSON(http.StatusOK, video)
+}
+
+func (videos *VideosController) Edit(context *gin.Context) {
+	id := context.Param("id")
+	user := CurrentUser(context)
+	var video models.Video
+	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
+	if searching != nil {
+		context.JSON(http.StatusNotFound, gin.H{
+			"summary": "Video not found",
+			"details": searching.Error(),
+		})
+		return
+	}
+
+	// Trying to bind input from JSON
+	var input EditVideoContract
+	if binding := context.ShouldBindJSON(&input); binding != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"summary": "Failed to read input",
+			"details": binding.Error(),
+		})
+		return
+	}
+	videos.Database.Model(&video).Updates(input)
+
+	context.JSON(http.StatusOK, gin.H{
+		"summary": "Video successfully updated",
+		"data":    video,
+	})
+}
+
+func (videos *VideosController) Delete(context *gin.Context) {
+	id := context.Param("id")
+	user := CurrentUser(context)
+	var video models.Video
+	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
+	if searching != nil {
+		context.JSON(http.StatusNotFound, gin.H{
+			"summary": "Video not found",
+			"details": searching.Error(),
+		})
+		return
+	}
+
+	videos.Database.Delete(&video)
+
+	context.JSON(http.StatusOK, gin.H{
+		"summary": "Video successfully deleted",
 	})
 }

@@ -44,6 +44,25 @@ func (_m *MockedDataAccessInterface) Create(_a0 interface{}) *gorm.DB {
 	return r0
 }
 
+// Delete provides a mock function with given fields: _a0, _a1
+func (_m *MockedDataAccessInterface) Delete(_a0 interface{}, _a1 ...interface{}) *gorm.DB {
+	var _ca []interface{}
+	_ca = append(_ca, _a0)
+	_ca = append(_ca, _a1...)
+	ret := _m.Called(_ca...)
+
+	var r0 *gorm.DB
+	if rf, ok := ret.Get(0).(func(interface{}, ...interface{}) *gorm.DB); ok {
+		r0 = rf(_a0, _a1...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gorm.DB)
+		}
+	}
+
+	return r0
+}
+
 // Find provides a mock function with given fields: _a0, _a1
 func (_m *MockedDataAccessInterface) Find(_a0 interface{}, _a1 ...interface{}) *gorm.DB {
 	var _ca []interface{}
@@ -65,6 +84,57 @@ func (_m *MockedDataAccessInterface) Find(_a0 interface{}, _a1 ...interface{}) *
 
 // First provides a mock function with given fields: _a0, _a1
 func (_m *MockedDataAccessInterface) First(_a0 interface{}, _a1 ...interface{}) *gorm.DB {
+	var _ca []interface{}
+	_ca = append(_ca, _a0)
+	_ca = append(_ca, _a1...)
+	ret := _m.Called(_ca...)
+
+	var r0 *gorm.DB
+	if rf, ok := ret.Get(0).(func(interface{}, ...interface{}) *gorm.DB); ok {
+		r0 = rf(_a0, _a1...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gorm.DB)
+		}
+	}
+
+	return r0
+}
+
+// Model provides a mock function with given fields: _a0
+func (_m *MockedDataAccessInterface) Model(_a0 interface{}) *gorm.DB {
+	ret := _m.Called(_a0)
+
+	var r0 *gorm.DB
+	if rf, ok := ret.Get(0).(func(interface{}) *gorm.DB); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gorm.DB)
+		}
+	}
+
+	return r0
+}
+
+// Updates provides a mock function with given fields: _a0
+func (_m *MockedDataAccessInterface) Updates(_a0 interface{}) *gorm.DB {
+	ret := _m.Called(_a0)
+
+	var r0 *gorm.DB
+	if rf, ok := ret.Get(0).(func(interface{}) *gorm.DB); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gorm.DB)
+		}
+	}
+
+	return r0
+}
+
+// Where provides a mock function with given fields: _a0, _a1
+func (_m *MockedDataAccessInterface) Where(_a0 interface{}, _a1 ...interface{}) *gorm.DB {
 	var _ca []interface{}
 	_ca = append(_ca, _a0)
 	_ca = append(_ca, _a1...)
