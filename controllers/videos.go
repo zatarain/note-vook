@@ -13,7 +13,9 @@ type VideosController struct {
 
 func (videos *VideosController) Index(context *gin.Context) {
 	var recordset []models.Video
-	videos.Database.Find(&recordset)
+	value, _ := context.Get("user")
+	user := value.(*models.User)
+	videos.Database.Find(&recordset, "user_id = ?", user.ID)
 	context.JSON(http.StatusOK, recordset)
 }
 

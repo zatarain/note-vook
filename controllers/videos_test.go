@@ -20,11 +20,19 @@ import (
 func TestVideosIndex(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
+	currentUser := &models.User{
+		ID:       4,
+		Nickname: "known",
+	}
+
+	authorise := func(context *gin.Context) {
+		context.Set("user", currentUser)
+	}
 
 	// Teardown test suite
 	defer monkey.UnpatchAll()
 
-	test.Run("Should return the list of videos", func(test *testing.T) {
+	test.Run("Should return the list of videos for the current user", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
@@ -33,7 +41,7 @@ func TestVideosIndex(test *testing.T) {
 		expectedVideos := []models.Video{
 			{
 				ID:          1,
-				UserID:      4,
+				UserID:      3,
 				Title:       "Dummy video 01",
 				Description: "This is a dummy video number one",
 				Duration:    100,
@@ -41,15 +49,35 @@ func TestVideosIndex(test *testing.T) {
 				CreatedAt:   dummyDate,
 				UpdatedAt:   dummyDate.Add(4 * time.Hour),
 			},
+			{
+				ID:          2,
+				UserID:      4,
+				Title:       "Dummy video 02",
+				Description: "This is a dummy video number two",
+				Duration:    200,
+				Link:        "https://youtube.com/v/number-two",
+				CreatedAt:   dummyDate,
+				UpdatedAt:   dummyDate.Add(4 * time.Hour),
+			},
+			{
+				ID:          2,
+				UserID:      3,
+				Title:       "Dummy video 02",
+				Description: "This is a dummy video number two",
+				Duration:    50,
+				Link:        "https://youtube.com/v/number-two",
+				CreatedAt:   dummyDate,
+				UpdatedAt:   dummyDate.Add(4 * time.Hour),
+			},
 		}
 		call := database.
-			On("Find", mock.AnythingOfType("*[]models.Video")).
+			On("Find", mock.AnythingOfType("*[]models.Video"), "user_id = ?", currentUser.ID).
 			Return(&gorm.DB{Error: nil})
 		call.RunFn = func(arguments mock.Arguments) {
 			recordset := arguments.Get(0).(*[]models.Video)
-			*recordset = append(*recordset, expectedVideos...)
+			*recordset = append(*recordset, expectedVideos[1])
 		}
-		server.GET("/videos", videos.Index)
+		server.GET("/videos", authorise, videos.Index)
 		request, _ := http.NewRequest(http.MethodGet, "/videos", nil)
 		recorder := httptest.NewRecorder()
 
@@ -61,7 +89,7 @@ func TestVideosIndex(test *testing.T) {
 		// Assert
 		assert.Nil(parserError)
 		assert.Equal(http.StatusOK, recorder.Code)
-		assert.Equal(expectedVideos, actualVideos)
+		assert.Equal(expectedVideos[1:2], actualVideos)
 		database.AssertExpectations(test)
 	})
 }
