@@ -13,6 +13,8 @@ import (
 
 	"bou.ke/monkey"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/zatarain/note-vook/mocks"
 	"gorm.io/gorm"
 )
 
@@ -84,7 +86,6 @@ func TestConnectToDatabase(test *testing.T) {
 }
 
 func TestMigrateDatabase(test *testing.T) {
-	assert := assert.New(test)
 	monkey.Patch(log.Panic, log.Print)
 
 	// Teardown test suite
@@ -95,17 +96,17 @@ func TestMigrateDatabase(test *testing.T) {
 		// Arrange
 		filename := fmt.Sprintf("%s/%s", path.Dir(os.Getenv("GOMOD")), os.Getenv("DATABASE"))
 		os.Remove(filename) // Remove test database if exists
-		ConnectToDatabase()
+		database := new(mocks.MockedDataAccessInterface)
+		database.On(
+			"AutoMigrate",
+			mock.AnythingOfType("*models.User"),
+			mock.AnythingOfType("*models.Video"),
+		).Return(nil)
 
 		// Act
-		MigrateDatabase()
+		MigrateDatabase(database)
 
 		// Assert
-		tables, exception := Database.Migrator().GetTables()
-		assert.Nil(exception)
-		assert.Equal(tables, []string{
-			"users",
-			"videos",
-		})
+		database.AssertExpectations(test)
 	})
 }

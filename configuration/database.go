@@ -34,8 +34,8 @@ func ConnectToDatabase() *sql.DB {
 	return connection
 }
 
-func MigrateDatabase() {
-	Database.AutoMigrate(
+func MigrateDatabase(database models.DataAccessInterface) {
+	database.AutoMigrate(
 		&models.User{},
 		&models.Video{},
 	)
