@@ -17,6 +17,7 @@ func TestSetup(test *testing.T) {
 		server.On("POST", "/signup", endPointHandler).Return(server)
 		server.On("POST", "/login", endPointHandler).Return(server)
 		server.On("GET", "/videos", authorisationHandler, endPointHandler).Return(server)
+		server.On("POST", "/videos", authorisationHandler, endPointHandler).Return(server)
 
 		// Act
 		Setup(server)

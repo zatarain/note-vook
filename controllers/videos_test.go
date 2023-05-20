@@ -1,28 +1,103 @@
 package controllers
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"net/http"
 	"net/http/httptest"
 
+	"bou.ke/monkey"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/zatarain/note-vook/mocks"
+	"github.com/zatarain/note-vook/models"
+	"gorm.io/gorm"
 )
 
-func TestGetVideos(test *testing.T) {
+func TestVideosIndex(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
-	server := gin.New()
-	server.HEAD("/videos", GetVideos)
-	recorder := httptest.NewRecorder()
 
-	request, exception := http.NewRequest(http.MethodHead, "/videos", nil)
-	assert.Nil(exception)
+	// Teardown test suite
+	defer monkey.UnpatchAll()
 
-	// Perform the request
-	server.ServeHTTP(recorder, request)
+	test.Run("Should return the list of videos", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
+		expectedVideos := []models.Video{
+			{
+				ID:          1,
+				UserID:      4,
+				Title:       "Dummy video 01",
+				Description: "This is a dummy video number one",
+				Duration:    100,
+				Link:        "https://youtube.com/v/number-one",
+				CreatedAt:   dummyDate,
+				UpdatedAt:   dummyDate.Add(4 * time.Hour),
+			},
+		}
+		call := database.
+			On("Find", mock.AnythingOfType("*[]models.Video")).
+			Return(&gorm.DB{Error: nil})
+		call.RunFn = func(arguments mock.Arguments) {
+			recordset := arguments.Get(0).(*[]models.Video)
+			*recordset = append(*recordset, expectedVideos...)
+		}
+		server.GET("/videos", videos.Index)
+		request, _ := http.NewRequest(http.MethodGet, "/videos", nil)
+		recorder := httptest.NewRecorder()
 
-	// Check to see if the response was what you expected
-	assert.Equal(http.StatusOK, recorder.Code)
+		// Act
+		server.ServeHTTP(recorder, request)
+		var actualVideos []models.Video
+		parserError := json.Unmarshal(recorder.Body.Bytes(), &actualVideos)
+
+		// Assert
+		assert.Nil(parserError)
+		assert.Equal(http.StatusOK, recorder.Code)
+		assert.Equal(expectedVideos, actualVideos)
+		database.AssertExpectations(test)
+	})
 }
+
+/**
+func TestVideosAdd(test *testing.T) {
+	assert := assert.New(test)
+	gin.SetMode(gin.TestMode)
+
+	// Teardown test suite
+	defer monkey.UnpatchAll()
+
+	test.Run("Should create a new video owned by current user", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		database.
+			On("Create", mock.AnythingOfType("*models.Video")).
+			Return(&gorm.DB{Error: nil})
+		server.POST("/videos", videos.Add)
+		video := models.Video{
+			Link:     "dummy-user",
+			Duration: 44,
+		}
+		body, _ := json.Marshal(video)
+		request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusCreated, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Video successfully created")
+		database.AssertExpectations(test)
+	})
+}
+/**/
