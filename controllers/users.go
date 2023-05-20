@@ -13,8 +13,8 @@ import (
 )
 
 type Credentials struct {
-	Nickname string
-	Password string
+	Nickname string `json:"nickname" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
 type UsersController struct {
