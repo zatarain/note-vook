@@ -4,10 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"time"
 )
 
 type TimeStamp int64
+
+const (
+	PATTERN     string = "^(([0-9]+):)?([0-9]+):([0-9]+)$"
+	REPLACEMENT string = "0${2}h${3}m${4}s"
+	ZERO        string = "00:00:00"
+)
 
 func (timestamp *TimeStamp) UnmarshalJSON(bytes []byte) error {
 	var unmarshalledJson interface{}
@@ -21,8 +28,14 @@ func (timestamp *TimeStamp) UnmarshalJSON(bytes []byte) error {
 	case float64:
 		*timestamp = TimeStamp(value)
 	case string:
-		pattern := regexp.MustCompile("^(([0-9]+):)?([0-9]+):([0-9]+)$")
-		output := pattern.ReplaceAllString(value, "0${2}h${3}m${4}s")
+		number, cannotConvert := strconv.ParseFloat(value, 64)
+		if cannotConvert == nil {
+			*timestamp = TimeStamp(number)
+			break
+		}
+
+		pattern := regexp.MustCompile(PATTERN)
+		output := pattern.ReplaceAllString(value, REPLACEMENT)
 		duration, exception := time.ParseDuration(output)
 		if exception != nil {
 			return exception
@@ -38,7 +51,7 @@ func (timestamp *TimeStamp) UnmarshalJSON(bytes []byte) error {
 func (timestamp *TimeStamp) MarshalJSON() ([]byte, error) {
 	value := int64(*timestamp)
 	duration := time.Duration(value) * time.Second
-	zero, _ := time.Parse(time.TimeOnly, "00:00:00")
+	zero, _ := time.Parse(time.TimeOnly, ZERO)
 	output := fmt.Sprintf("\"%v\"", zero.Add(duration).Format(time.TimeOnly))
 	return []byte(output), nil
 }
