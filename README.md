@@ -1,5 +1,5 @@
-# 🧑🏽‍💻 Project: `NoteVook`
-[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![CI/CD Pipeline](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml/badge.svg)](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml) [![codecov](https://codecov.io/gh/zatarain/note-vook/branch/main/graph/badge.svg?token=bufQuVyLCi)](https://codecov.io/gh/zatarain/note-vook)
+# 🧑🏽‍💻 Project: `NoteVook` 
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![CI/CD Pipeline](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml/badge.svg)](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml) [![codecov](https://codecov.io/gh/zatarain/note-vook/branch/main/graph/badge.svg?token=bufQuVyLCi)](https://codecov.io/gh/zatarain/note-vook) [![Go Report Card](https://goreportcard.com/badge/github.com/zatarain/note-vook)](https://goreportcard.com/report/github.com/zatarain/note-vook)
 
 This project aims to be an exercise to discuss about software engineering technical topics like software development, pair programming, testing, deployment, etcetera. More specifically, to discuss the development of an [API (Application Programming Interface)][what-is-api] to **manage annotations for videos** implemented written in [go programming language][go-lang].
 ## 📂 Table of content
@@ -297,7 +297,7 @@ In order to run the application locally it can be done by using the command line
 * Clone [this Git repository][note-vook-repo] and build the image locally
 ```sh
 git clone https://github.com/zatarain/note-vook.git
-cd note-book
+cd note-vook
 docker compose up --build
 ```
 
