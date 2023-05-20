@@ -36,7 +36,7 @@ func ConnectToDatabase() *sql.DB {
 
 func MigrateDatabase() {
 	Database.AutoMigrate(
-		&models.Video{},
 		&models.User{},
+		&models.Video{},
 	)
 }

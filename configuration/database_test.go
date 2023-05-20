@@ -104,8 +104,8 @@ func TestMigrateDatabase(test *testing.T) {
 		tables, exception := Database.Migrator().GetTables()
 		assert.Nil(exception)
 		assert.Equal(tables, []string{
-			"videos",
 			"users",
+			"videos",
 		})
 	})
 }
