@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
 	"testing"
 	"time"
 
@@ -77,22 +76,18 @@ func TestVideosIndex(test *testing.T) {
 			Return(db)
 		call.RunFn = func(arguments mock.Arguments) {
 			recordset := arguments.Get(0).(*[]models.Video)
-			log.Println("Within the mock call: ", dataset[1:2])
 			*recordset = dataset[1:2]
 			//call.ReturnArguments = mock.Arguments{db, *recordset}
 		}
 		server.GET("/videos", authorise, videos.Index)
 		request, _ := http.NewRequest(http.MethodGet, "/videos", nil)
 		recorder := httptest.NewRecorder()
-		expected, exception := json.Marshal(gin.H{"data": dataset[1:2]})
-		log.Println("Marshaling error: ", exception)
-		log.Print("After arrange expected: ", expected)
+		expected, _ := json.Marshal(gin.H{"data": dataset[1:2]})
 
 		// Act
 		server.ServeHTTP(recorder, request)
 
 		// Assert
-		log.Println("Actual body: ", recorder.Body.String())
 		assert.Equal(http.StatusOK, recorder.Code)
 		assert.Equal(expected, recorder.Body.Bytes())
 		database.AssertExpectations(test)

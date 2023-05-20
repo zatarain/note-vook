@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +34,6 @@ func (videos *VideosController) Index(context *gin.Context) {
 	user := CurrentUser(context)
 	var recordset []models.Video
 	videos.Database.Find(&recordset, "user_id = ?", user.ID)
-	log.Println("Actual result within the handler: ", recordset)
 	context.JSON(http.StatusOK, gin.H{"data": recordset})
 }
 
