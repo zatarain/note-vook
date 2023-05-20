@@ -37,7 +37,8 @@ func (timestamp *TimeStamp) UnmarshalJSON(bytes []byte) error {
 }
 
 func (timestamp *TimeStamp) MarshalJSON() ([]byte, error) {
-	output := fmt.Sprint(time.Duration(*timestamp))
+	value := int64(*timestamp)
+	output := fmt.Sprintf("\"%v\"", time.Duration(value)*time.Second)
 	output = strings.Replace(output, "h", ":", 1)
 	output = strings.Replace(output, "m", ":", 1)
 	output = strings.Replace(output, "s", "", 1)

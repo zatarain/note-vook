@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"log"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ func TestVideosIndex(test *testing.T) {
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
 		dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
-		expectedVideos := []models.Video{
+		dataset := []models.Video{
 			{
 				ID:          1,
 				UserID:      3,
@@ -70,26 +71,30 @@ func TestVideosIndex(test *testing.T) {
 				UpdatedAt:   dummyDate,
 			},
 		}
+		db := &gorm.DB{Error: nil}
 		call := database.
 			On("Find", mock.AnythingOfType("*[]models.Video"), "user_id = ?", currentUser.ID).
-			Return(&gorm.DB{Error: nil})
+			Return(db)
 		call.RunFn = func(arguments mock.Arguments) {
 			recordset := arguments.Get(0).(*[]models.Video)
-			*recordset = append(*recordset, expectedVideos[1])
+			log.Println("Within the mock call: ", dataset[1:2])
+			*recordset = dataset[1:2]
+			//call.ReturnArguments = mock.Arguments{db, *recordset}
 		}
 		server.GET("/videos", authorise, videos.Index)
 		request, _ := http.NewRequest(http.MethodGet, "/videos", nil)
 		recorder := httptest.NewRecorder()
+		expected, exception := json.Marshal(gin.H{"data": dataset[1:2]})
+		log.Println("Marshaling error: ", exception)
+		log.Print("After arrange expected: ", expected)
 
 		// Act
 		server.ServeHTTP(recorder, request)
-		var actualVideos []models.Video
-		parserError := json.Unmarshal(recorder.Body.Bytes(), &actualVideos)
 
 		// Assert
-		assert.Nil(parserError)
+		log.Println("Actual body: ", recorder.Body.String())
 		assert.Equal(http.StatusOK, recorder.Code)
-		assert.Equal(expectedVideos[1:2], actualVideos)
+		assert.Equal(expected, recorder.Body.Bytes())
 		database.AssertExpectations(test)
 	})
 }
