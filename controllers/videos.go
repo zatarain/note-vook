@@ -15,14 +15,14 @@ type VideosController struct {
 type AddVideoContract struct {
 	Title       string           `json:"title" binding:"required"`
 	Description string           `json:"description"`
-	Link        string           `json:"link" binding:"required"`
+	Link        string           `json:"link" binding:"required,url"`
 	Duration    models.TimeStamp `json:"duration" binding:"required"`
 }
 
 type EditVideoContract struct {
 	Title       string           `json:"title"`
 	Description string           `json:"description"`
-	Link        string           `json:"link"`
+	Link        string           `json:"link" binding:"omitempty,url"`
 	Duration    models.TimeStamp `json:"duration"`
 }
 
@@ -86,8 +86,6 @@ func (videos *VideosController) View(context *gin.Context) {
 		})
 		return
 	}
-	recordset := []models.Video{video}
-	context.JSON(http.StatusOK, gin.H{"data": recordset})
 	context.JSON(http.StatusOK, gin.H{"data": video})
 }
 
@@ -113,7 +111,15 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		})
 		return
 	}
-	videos.Database.Model(&video).Updates(input)
+
+	saving := videos.Database.Model(&video).Updates(input).Error
+	if saving != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"summary": "Failed to save the video",
+			"details": saving.Error(),
+		})
+		return
+	}
 
 	context.JSON(http.StatusOK, gin.H{
 		"summary": "Video successfully updated",
@@ -134,7 +140,14 @@ func (videos *VideosController) Delete(context *gin.Context) {
 		return
 	}
 
-	videos.Database.Delete(&video)
+	deleting := videos.Database.Delete(&video).Error
+	if deleting != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"summary": "Failed to delete the video",
+			"details": deleting.Error(),
+		})
+		return
+	}
 
 	context.JSON(http.StatusOK, gin.H{
 		"summary": "Video successfully deleted",
