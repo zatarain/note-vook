@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -38,9 +37,8 @@ func (timestamp *TimeStamp) UnmarshalJSON(bytes []byte) error {
 
 func (timestamp *TimeStamp) MarshalJSON() ([]byte, error) {
 	value := int64(*timestamp)
-	output := fmt.Sprintf("\"%v\"", time.Duration(value)*time.Second)
-	output = strings.Replace(output, "h", ":", 1)
-	output = strings.Replace(output, "m", ":", 1)
-	output = strings.Replace(output, "s", "", 1)
+	duration := time.Duration(value) * time.Second
+	zero, _ := time.Parse(time.TimeOnly, "00:00:00")
+	output := fmt.Sprintf("\"%v\"", zero.Add(duration).Format(time.TimeOnly))
 	return []byte(output), nil
 }
