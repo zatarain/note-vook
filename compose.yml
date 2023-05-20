@@ -1,0 +1,18 @@
+services:
+  backend:
+    container_name: api
+    image: zatarain/note-vook
+    build: .
+    ports:
+      - 4000:4000
+    volumes:
+      - database:/data
+
+volumes:
+  database:
+    name: note-vook-data
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: data
