@@ -24,24 +24,24 @@ func (videos *VideosController) Index(context *gin.Context) {
 }
 
 type AddVideoContract struct {
-	Title       string `json:"title" binding:"required"`
-	Description string `json:"description" binding:"required"`
-	Link        string `json:"link" binding:"required"`
-	Duration    int    `json:"duration" binding:"required"`
+	Title       string           `json:"title" binding:"required"`
+	Description string           `json:"description" binding:"required"`
+	Link        string           `json:"link" binding:"required"`
+	Duration    models.TimeStamp `json:"duration" binding:"required"`
 }
 
 type EditVideoContract struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Link        string `json:"link"`
-	Duration    int    `json:"duration"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Link        string           `json:"link"`
+	Duration    models.TimeStamp `json:"duration"`
 }
 
 func (videos *VideosController) Add(context *gin.Context) {
 	var input AddVideoContract
 
 	// Trying to bind input from JSON
-	if binding := context.BindJSON(&input); binding != nil {
+	if binding := context.ShouldBindJSON(&input); binding != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"summary": "Failed to read input",
 			"details": binding.Error(),
@@ -55,7 +55,7 @@ func (videos *VideosController) Add(context *gin.Context) {
 		Title:       input.Title,
 		Description: input.Description,
 		Link:        input.Link,
-		Duration:    input.Duration,
+		Duration:    int64(input.Duration.Duration),
 	}
 	inserting := videos.Database.Create(&video).Error
 	if inserting != nil {
