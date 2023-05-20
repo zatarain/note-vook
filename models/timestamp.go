@@ -52,6 +52,6 @@ func (timestamp *TimeStamp) MarshalJSON() ([]byte, error) {
 	value := int64(*timestamp)
 	duration := time.Duration(value) * time.Second
 	zero, _ := time.Parse(time.TimeOnly, ZERO)
-	output := fmt.Sprintf("\"%v\"", zero.Add(duration).Format(time.TimeOnly))
+	output := fmt.Sprintf(`"%v"`, zero.Add(duration).Format(time.TimeOnly))
 	return []byte(output), nil
 }
