@@ -82,7 +82,7 @@ func TestVideosIndex(test *testing.T) {
 		server.GET("/videos", authorise, videos.Index)
 		request, _ := http.NewRequest(http.MethodGet, "/videos", nil)
 		recorder := httptest.NewRecorder()
-		expected, _ := json.Marshal(gin.H{"data": dataset[1:2]})
+		expected, _ := json.Marshal(dataset[1:2])
 
 		// Act
 		server.ServeHTTP(recorder, request)

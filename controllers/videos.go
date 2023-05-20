@@ -34,7 +34,7 @@ func (videos *VideosController) Index(context *gin.Context) {
 	user := CurrentUser(context)
 	var recordset []models.Video
 	videos.Database.Find(&recordset, "user_id = ?", user.ID)
-	context.JSON(http.StatusOK, gin.H{"data": recordset})
+	context.JSON(http.StatusOK, recordset)
 }
 
 func (videos *VideosController) Add(context *gin.Context) {
@@ -43,8 +43,8 @@ func (videos *VideosController) Add(context *gin.Context) {
 	// Trying to bind input from JSON
 	if binding := context.ShouldBindJSON(&input); binding != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to read input",
-			"details": binding.Error(),
+			"error":  "Failed to read input",
+			"reason": binding.Error(),
 		})
 		return
 	}
@@ -60,16 +60,13 @@ func (videos *VideosController) Add(context *gin.Context) {
 	inserting := videos.Database.Create(&video).Error
 	if inserting != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to save the video",
-			"details": inserting.Error(),
+			"error":  "Failed to save the video",
+			"reason": inserting.Error(),
 		})
 		return
 	}
 
-	context.JSON(http.StatusCreated, gin.H{
-		"message": "Video successfully added",
-		"data":    video,
-	})
+	context.JSON(http.StatusCreated, &video)
 }
 
 func (videos *VideosController) View(context *gin.Context) {
@@ -79,12 +76,12 @@ func (videos *VideosController) View(context *gin.Context) {
 	searching := videos.Database.First(&video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.JSON(http.StatusNotFound, gin.H{
-			"summary": "Video not found",
-			"details": searching.Error(),
+			"error":  "Video not found",
+			"reason": searching.Error(),
 		})
 		return
 	}
-	context.JSON(http.StatusOK, gin.H{"data": video})
+	context.JSON(http.StatusOK, &video)
 }
 
 func (videos *VideosController) Edit(context *gin.Context) {
@@ -94,8 +91,8 @@ func (videos *VideosController) Edit(context *gin.Context) {
 	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
 	if searching != nil {
 		context.JSON(http.StatusNotFound, gin.H{
-			"summary": "Video not found",
-			"details": searching.Error(),
+			"error":  "Video not found",
+			"reason": searching.Error(),
 		})
 		return
 	}
@@ -104,8 +101,8 @@ func (videos *VideosController) Edit(context *gin.Context) {
 	var input EditVideoContract
 	if binding := context.ShouldBindJSON(&input); binding != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to read input",
-			"details": binding.Error(),
+			"error":  "Failed to read input",
+			"reason": binding.Error(),
 		})
 		return
 	}
@@ -113,16 +110,13 @@ func (videos *VideosController) Edit(context *gin.Context) {
 	saving := videos.Database.Model(&video).Updates(input).Error
 	if saving != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to save the video",
-			"details": saving.Error(),
+			"error":  "Failed to save the video",
+			"reason": saving.Error(),
 		})
 		return
 	}
 
-	context.JSON(http.StatusOK, gin.H{
-		"summary": "Video successfully updated",
-		"data":    video,
-	})
+	context.JSON(http.StatusOK, &video)
 }
 
 func (videos *VideosController) Delete(context *gin.Context) {
@@ -132,8 +126,8 @@ func (videos *VideosController) Delete(context *gin.Context) {
 	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
 	if searching != nil {
 		context.JSON(http.StatusNotFound, gin.H{
-			"summary": "Video not found",
-			"details": searching.Error(),
+			"error":  "Video not found",
+			"reason": searching.Error(),
 		})
 		return
 	}
@@ -141,13 +135,13 @@ func (videos *VideosController) Delete(context *gin.Context) {
 	deleting := videos.Database.Delete(&video).Error
 	if deleting != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to delete the video",
-			"details": deleting.Error(),
+			"error":  "Failed to delete the video",
+			"reason": deleting.Error(),
 		})
 		return
 	}
 
 	context.JSON(http.StatusOK, gin.H{
-		"summary": "Video successfully deleted",
+		"message": "Video successfully deleted",
 	})
 }
