@@ -57,17 +57,17 @@ func TestVideosIndex(test *testing.T) {
 				Duration:    200,
 				Link:        "https://youtube.com/v/number-two",
 				CreatedAt:   dummyDate,
-				UpdatedAt:   dummyDate.Add(4 * time.Hour),
+				UpdatedAt:   dummyDate.Add(7 * time.Hour),
 			},
 			{
-				ID:          2,
+				ID:          3,
 				UserID:      3,
-				Title:       "Dummy video 02",
-				Description: "This is a dummy video number two",
+				Title:       "Dummy video 03",
+				Description: "This is a dummy video number three",
 				Duration:    50,
-				Link:        "https://youtube.com/v/number-two",
+				Link:        "https://youtube.com/v/number-three",
 				CreatedAt:   dummyDate,
-				UpdatedAt:   dummyDate.Add(4 * time.Hour),
+				UpdatedAt:   dummyDate,
 			},
 		}
 		call := database.

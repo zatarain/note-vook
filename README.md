@@ -118,17 +118,17 @@ This entity will represent the videos in the system and each record will be stor
 #### ✍🏽 Annotation
 This entity will represent the annotations for the videos in the system and each record will be stored in the table `annotations` which has following fields:
 
-|    | Name          |     Type    | Description                                 |
-|:--:| :---          |    :----:   | :---                                        |
-| 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the annotation  |
-| ✳️ | `video_id`    | `INTEGER`   | Foreign key for the video                   |
-| 🔢 | `type`        | `INTEGER`   | Annotation type or category                 |
-| 🔢 | `start`       | `INTEGER`   | Start point in the video timeline           |
-| 🔢 | `end`         | `INTEGER`   | End point in the video timeline             |
-| 🔤 | `title`       | `TEXT`      | Title or headline of the annotation         |
-| 📄 | `body`        | `BLOB`      | Optional. Additional notes                  |
-| 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time    |
-| 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time |
+|    | Name          |     Type    | Description                                      |
+|:--:| :---          |    :----:   | :---                                             | 
+| 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the annotation       |
+| ✳️ | `video_id`    | `INTEGER`   | Foreign key for the video                        |
+| 🔢 | `type`        | `INTEGER`   | Annotation type or category                      |
+| 🔢 | `start`       | `INTEGER`   | Start point in seconds within the video timeline |
+| 🔢 | `end`         | `INTEGER`   | End point in seconds within the video timeline   |
+| 🔤 | `title`       | `TEXT`      | Title or headline of the annotation              |
+| 📄 | `body`        | `BLOB`      | Optional. Additional notes                       |
+| 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time         |
+| 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time      |
 
 #### 👤 User
 The records for this entity will represent the users in the system and each record will be stored in the table `users` which has following fields:

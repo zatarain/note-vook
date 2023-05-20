@@ -55,7 +55,7 @@ func (videos *VideosController) Add(context *gin.Context) {
 		Title:       input.Title,
 		Description: input.Description,
 		Link:        input.Link,
-		Duration:    int64(input.Duration.Duration),
+		Duration:    int64(input.Duration),
 	}
 	inserting := videos.Database.Create(&video).Error
 	if inserting != nil {
