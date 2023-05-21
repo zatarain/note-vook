@@ -383,7 +383,7 @@ func TestVideosEdit(test *testing.T) {
 		Nickname: "three",
 	}
 
-	test.Run("Should return HTTP 404 if video it's not in database", func(test *testing.T) {
+	test.Run("Should return HTTP 404 if video it's not in database when trying to edit it", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
@@ -409,7 +409,6 @@ func TestVideosDelete(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
 
-	/**
 	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
 	video := models.Video{
 		ID:          3,
@@ -421,13 +420,39 @@ func TestVideosDelete(test *testing.T) {
 		CreatedAt:   dummyDate,
 		UpdatedAt:   dummyDate,
 	}
-	/**/
 	current := models.User{
 		ID:       3,
 		Nickname: "three",
 	}
 
-	test.Run("Should return HTTP 404 if video it's not in database", func(test *testing.T) {
+	test.Run("Should delete the video for the current user", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		search := database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
+			Return(&gorm.DB{Error: nil})
+		search.RunFn = func(arguments mock.Arguments) {
+			recordset := arguments.Get(0).(*models.Video)
+			*recordset = video
+		}
+		database.On("Delete", mock.AnythingOfType("*models.Video")).Return(&gorm.DB{Error: nil})
+
+		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
+		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusOK, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Video successfully deleted")
+		//database.AssertExpectations(test)
+	})
+
+	test.Run("Should return HTTP 404 if video it's not in database when trying to delete it", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)

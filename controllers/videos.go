@@ -69,7 +69,7 @@ func (videos *VideosController) Add(context *gin.Context) {
 	context.JSON(http.StatusCreated, &video)
 }
 
-func (videos *VideosController) search(video *models.Video, context *gin.Context) {
+func (videos *VideosController) search(video *models.Video, context *gin.Context) bool {
 	id := context.Param("id")
 	user := CurrentUser(context)
 	searching := videos.Database.First(video, "id = ? AND user_id = ?", id, user.ID).Error
@@ -78,18 +78,24 @@ func (videos *VideosController) search(video *models.Video, context *gin.Context
 			"error":  "Video not found",
 			"reason": searching.Error(),
 		})
+		return false
 	}
+	return true
 }
 
 func (videos *VideosController) View(context *gin.Context) {
 	var video models.Video
-	videos.search(&video, context)
+	if !videos.search(&video, context) {
+		return
+	}
 	context.JSON(http.StatusOK, &video)
 }
 
 func (videos *VideosController) Edit(context *gin.Context) {
 	var video models.Video
-	videos.search(&video, context)
+	if !videos.search(&video, context) {
+		return
+	}
 
 	// Trying to bind input from JSON
 	var input EditVideoContract
@@ -115,7 +121,9 @@ func (videos *VideosController) Edit(context *gin.Context) {
 
 func (videos *VideosController) Delete(context *gin.Context) {
 	var video models.Video
-	videos.search(&video, context)
+	if !videos.search(&video, context) {
+		return
+	}
 
 	deleting := videos.Database.Delete(&video).Error
 	if deleting != nil {
