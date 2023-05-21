@@ -224,4 +224,91 @@ func TestVideosAdd(test *testing.T) {
 		assert.Equal(expected, recorder.Body.Bytes())
 		database.AssertExpectations(test)
 	})
+
+	invalids := []struct {
+		Expected string
+		Body     gin.H
+	}{
+		{
+			Expected: "Field validation for 'Title' failed on the 'required' tag",
+			Body: gin.H{
+				"description": "This is a dummy video number three",
+				"duration":    "1:45",
+				"link":        "https://youtube.com/v/number-three",
+			},
+		},
+		{
+			Expected: "Field validation for 'Title' failed on the 'required' tag",
+			Body: gin.H{
+				"title":       "",
+				"description": "This is a dummy video number three",
+				"duration":    "1:45",
+				"link":        "https://youtube.com/v/number-three",
+			},
+		},
+		{
+			Expected: "Field validation for 'Link' failed on the 'required' tag",
+			Body: gin.H{
+				"title":       "Dummy video 03",
+				"description": "This is a dummy video number three",
+				"duration":    "1:45",
+			},
+		},
+		{
+			Expected: "Field validation for 'Duration' failed on the 'required' tag",
+			Body: gin.H{
+				"title":       "Dummy video 03",
+				"description": "This is a dummy video number three",
+				"link":        "https://youtube.com/v/number-three",
+			},
+		},
+		{
+			Expected: "Field validation for 'Link' failed on the 'url' tag",
+			Body: gin.H{
+				"title":       "Dummy video 03",
+				"description": "This is a dummy video number three",
+				"duration":    "1:45",
+				"link":        "bad link address",
+			},
+		},
+		{
+			Expected: "time: invalid duration",
+			Body: gin.H{
+				"title":       "Dummy video 03",
+				"description": "This is a dummy video number three",
+				"duration":    "hello",
+				"link":        "https://youtube.com/v/number-three",
+			},
+		},
+	}
+
+	for _, testcase := range invalids {
+		test.Run("Should NOT try to create for current user with invalid inputs", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			videos := &VideosController{Database: database}
+			call := database.
+				On("Create", mock.AnythingOfType("*models.Video")).
+				Return(&gorm.DB{Error: nil})
+			call.RunFn = func(arguments mock.Arguments) {
+				recordset := arguments.Get(0).(*models.Video)
+				*recordset = video
+			}
+			server.POST("/videos", authorise(&current), videos.Add)
+
+			body, _ := json.Marshal(testcase.Body)
+			request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer([]byte(body)))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), testcase.Expected)
+			assert.Contains(recorder.Body.String(), "Failed to read input")
+			//database.AssertNotCalled(test, "Create", mock.AnythingOfType("*models.Video"))
+		})
+	}
 }
