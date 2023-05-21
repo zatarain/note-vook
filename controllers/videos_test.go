@@ -181,51 +181,79 @@ func TestVideosAdd(test *testing.T) {
 		ID:       3,
 		Nickname: "three",
 	}
-	video := models.Video{
-		ID:          3,
-		UserID:      3,
-		Title:       "Dummy video 03",
-		Description: "This is a dummy video number three",
-		Duration:    105,
-		Link:        "https://youtube.com/v/number-three",
-		CreatedAt:   dummyDate,
-		UpdatedAt:   dummyDate,
+
+	validTestcases := []struct {
+		Input    gin.H
+		Expected models.Video
+	}{
+		{
+			Expected: models.Video{
+				ID:          3,
+				UserID:      3,
+				Title:       "Dummy video 03",
+				Description: "This is a dummy video number three",
+				Duration:    105,
+				Link:        "https://youtube.com/v/number-three",
+				CreatedAt:   dummyDate,
+				UpdatedAt:   dummyDate,
+			},
+			Input: gin.H{
+				"title":       "Dummy video 03",
+				"description": "This is a dummy video number three",
+				"duration":    "1:45",
+				"link":        "https://youtube.com/v/number-three",
+			},
+		},
+		{
+			Expected: models.Video{
+				ID:          5,
+				UserID:      3,
+				Title:       "Dummy video 05",
+				Description: "",
+				Duration:    400,
+				Link:        "https://youtube.com/v/number-five",
+				CreatedAt:   dummyDate,
+				UpdatedAt:   dummyDate,
+			},
+			Input: gin.H{
+				"title":    "Dummy video 04",
+				"duration": 400,
+				"link":     "https://youtube.com/v/number-five",
+			},
+		},
 	}
 
-	test.Run("Should create a new video owned by current user", func(test *testing.T) {
-		// Arrange
-		server := gin.New()
-		database := new(mocks.MockedDataAccessInterface)
-		videos := &VideosController{Database: database}
-		call := database.
-			On("Create", mock.AnythingOfType("*models.Video")).
-			Return(&gorm.DB{Error: nil})
-		call.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
-		}
-		server.POST("/videos", authorise(&current), videos.Add)
+	for _, testcase := range validTestcases {
+		test.Run("Should create a new video owned by current user when valid data is received", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			videos := &VideosController{Database: database}
+			call := database.
+				On("Create", mock.AnythingOfType("*models.Video")).
+				Return(&gorm.DB{Error: nil})
+			call.RunFn = func(arguments mock.Arguments) {
+				recordset := arguments.Get(0).(*models.Video)
+				*recordset = testcase.Expected
+			}
+			server.POST("/videos", authorise(&current), videos.Add)
 
-		body, _ := json.Marshal(gin.H{
-			"title":       "Dummy video 03",
-			"description": "This is a dummy video number three",
-			"duration":    "1:45",
-			"link":        "https://youtube.com/v/number-three",
+			body, _ := json.Marshal(testcase.Input)
+			request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+			expected, _ := json.Marshal(&testcase.Expected)
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusCreated, recorder.Code)
+			assert.Equal(expected, recorder.Body.Bytes())
+			database.AssertExpectations(test)
 		})
-		request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer(body))
-		recorder := httptest.NewRecorder()
-		expected, _ := json.Marshal(&video)
+	}
 
-		// Act
-		server.ServeHTTP(recorder, request)
-
-		// Assert
-		assert.Equal(http.StatusCreated, recorder.Code)
-		assert.Equal(expected, recorder.Body.Bytes())
-		database.AssertExpectations(test)
-	})
-
-	invalids := []struct {
+	invalidTestcases := []struct {
 		Expected string
 		Body     gin.H
 	}{
@@ -282,19 +310,15 @@ func TestVideosAdd(test *testing.T) {
 		},
 	}
 
-	for _, testcase := range invalids {
+	for _, testcase := range invalidTestcases {
 		test.Run("Should NOT try to create for current user with invalid inputs", func(test *testing.T) {
 			// Arrange
 			server := gin.New()
 			database := new(mocks.MockedDataAccessInterface)
 			videos := &VideosController{Database: database}
-			call := database.
+			database.
 				On("Create", mock.AnythingOfType("*models.Video")).
 				Return(&gorm.DB{Error: nil})
-			call.RunFn = func(arguments mock.Arguments) {
-				recordset := arguments.Get(0).(*models.Video)
-				*recordset = video
-			}
 			server.POST("/videos", authorise(&current), videos.Add)
 
 			body, _ := json.Marshal(testcase.Body)
@@ -308,7 +332,7 @@ func TestVideosAdd(test *testing.T) {
 			assert.Equal(http.StatusBadRequest, recorder.Code)
 			assert.Contains(recorder.Body.String(), testcase.Expected)
 			assert.Contains(recorder.Body.String(), "Failed to read input")
-			//database.AssertNotCalled(test, "Create", mock.AnythingOfType("*models.Video"))
+			database.AssertNotCalled(test, "Create", mock.AnythingOfType("*models.Video"))
 		})
 	}
 }
