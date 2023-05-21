@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -171,38 +172,56 @@ func TestVideosView(test *testing.T) {
 	})
 }
 
-/**
 func TestVideosAdd(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
 
-	// Teardown test suite
-	defer monkey.UnpatchAll()
+	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
+	current := models.User{
+		ID:       3,
+		Nickname: "three",
+	}
+	video := models.Video{
+		ID:          3,
+		UserID:      3,
+		Title:       "Dummy video 03",
+		Description: "This is a dummy video number three",
+		Duration:    105,
+		Link:        "https://youtube.com/v/number-three",
+		CreatedAt:   dummyDate,
+		UpdatedAt:   dummyDate,
+	}
 
 	test.Run("Should create a new video owned by current user", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		database.
+		call := database.
 			On("Create", mock.AnythingOfType("*models.Video")).
 			Return(&gorm.DB{Error: nil})
-		server.POST("/videos", videos.Add)
-		video := models.Video{
-			Link:     "dummy-user",
-			Duration: 44,
+		call.RunFn = func(arguments mock.Arguments) {
+			recordset := arguments.Get(0).(*models.Video)
+			*recordset = video
 		}
-		body, _ := json.Marshal(video)
+		server.POST("/videos", authorise(&current), videos.Add)
+
+		body, _ := json.Marshal(gin.H{
+			"title":       "Dummy video 03",
+			"description": "This is a dummy video number three",
+			"duration":    "1:45",
+			"link":        "https://youtube.com/v/number-three",
+		})
 		request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer(body))
 		recorder := httptest.NewRecorder()
+		expected, _ := json.Marshal(&video)
 
 		// Act
 		server.ServeHTTP(recorder, request)
 
 		// Assert
 		assert.Equal(http.StatusCreated, recorder.Code)
-		assert.Contains(recorder.Body.String(), "Video successfully created")
+		assert.Equal(expected, recorder.Body.Bytes())
 		database.AssertExpectations(test)
 	})
 }
-/**/

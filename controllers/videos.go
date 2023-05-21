@@ -50,7 +50,7 @@ func (videos *VideosController) Add(context *gin.Context) {
 	}
 
 	user := CurrentUser(context)
-	video := &models.Video{
+	video := models.Video{
 		UserID:      user.ID,
 		Title:       input.Title,
 		Description: input.Description,
