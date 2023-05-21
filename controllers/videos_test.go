@@ -435,7 +435,7 @@ func TestVideosDelete(test *testing.T) {
 		database.
 			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "32", current.ID).
 			Return(&gorm.DB{Error: errors.New("no results")})
-		server.DELETE("/videos/:id", authorise(&current), videos.Edit)
+		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, "/videos/32", nil)
 		recorder := httptest.NewRecorder()
 
