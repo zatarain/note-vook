@@ -52,7 +52,6 @@ func TestSignup(test *testing.T) {
 
 		// Assert
 		assert.Equal(http.StatusCreated, recorder.Code)
-		assert.Contains(recorder.Body.String(), "User successfully created")
 		database.AssertExpectations(test)
 	})
 

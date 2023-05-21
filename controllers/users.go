@@ -13,8 +13,8 @@ import (
 )
 
 type Credentials struct {
-	Nickname string
-	Password string
+	Nickname string `json:"nickname" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
 type UsersController struct {
@@ -42,8 +42,8 @@ func getCredentialsFromRequest(context *gin.Context) *Credentials {
 	// Trying to bind input from JSON
 	if binding := context.BindJSON(&credentials); binding != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to read input",
-			"details": binding.Error(),
+			"error":  "Failed to read input",
+			"reason": binding.Error(),
 		})
 		return nil
 	}
@@ -60,8 +60,8 @@ func (users *UsersController) Signup(context *gin.Context) {
 	// Trying to crete a hash for password
 	if exception := credentials.HashPassword(); exception != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to create the hash for password",
-			"details": exception.Error(),
+			"error":  "Failed to create the hash for password",
+			"reason": exception.Error(),
 		})
 		return
 	}
@@ -74,16 +74,13 @@ func (users *UsersController) Signup(context *gin.Context) {
 	inserting := users.Database.Create(&user).Error
 	if inserting != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Failed to insert user into table users",
-			"details": inserting.Error(),
+			"error":  "Failed to insert user into table users",
+			"reason": inserting.Error(),
 		})
 		return
 	}
 
-	context.JSON(http.StatusCreated, gin.H{
-		"summary": "User successfully created",
-		"details": user.String(),
-	})
+	context.JSON(http.StatusCreated, &user)
 }
 
 func (users *UsersController) NewToken(user *models.User) (string, error) {
@@ -113,7 +110,7 @@ func (users *UsersController) Login(context *gin.Context) {
 	)
 	if user.ID == 0 || failed != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"summary": "Invalid nickname or password",
+			"error": "Invalid nickname or password",
 		})
 		return
 	}
@@ -122,8 +119,8 @@ func (users *UsersController) Login(context *gin.Context) {
 	token, exception := users.NewToken(user)
 	if exception != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
-			"summary": "Unable to generate access token",
-			"details": exception.Error(),
+			"error":  "Unable to generate access token",
+			"reason": exception.Error(),
 		})
 		return
 	}
@@ -131,7 +128,7 @@ func (users *UsersController) Login(context *gin.Context) {
 	// Send cookie to the client
 	context.SetSameSite(http.SameSiteLaxMode)
 	context.SetCookie("Authorisation", token, 7*24*60*60, "", "", false, true)
-	context.JSON(http.StatusOK, gin.H{"summary": "Yaaay! You are logged in :)"})
+	context.JSON(http.StatusOK, gin.H{"message": "Yaaay! You are logged in :)"})
 }
 
 func (users *UsersController) Decoder(token *jwt.Token) (interface{}, error) {
@@ -182,8 +179,8 @@ func (users *UsersController) Authorise(context *gin.Context) {
 		context.AbortWithStatusJSON(
 			http.StatusUnauthorized,
 			gin.H{
-				"summary": "Unauthorised",
-				"details": exception.Error(),
+				"error":  "Unauthorised",
+				"reason": exception.Error(),
 			},
 		)
 	}

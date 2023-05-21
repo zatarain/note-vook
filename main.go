@@ -13,7 +13,7 @@ func main() {
 	defer connection.Close()
 
 	// Initialise Database
-	configuration.MigrateDatabase()
+	configuration.MigrateDatabase(configuration.Database)
 
 	// Initialise the API Server
 	server := gin.Default()

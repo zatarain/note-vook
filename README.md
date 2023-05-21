@@ -104,36 +104,36 @@ The API manages the persistency of the data with a 🪶 [SQLite][sqlite] databas
 #### 🎞️ Video
 This entity will represent the videos in the system and each record will be stored in the table `videos` which has following fields:
 
-|    | Name          |     Type    | Description                                  |
-|:--:| :---          |    :----:   | :---                                         |
-| 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the video        |
-| ✳️ | `user_id`     | `INTEGER`   | Foreign key for the user owner of the video  |
-| 🔤 | `title`       | `TEXT`      | Title of the video                           |
-| 📄 | `description` | `BLOB`      | Description for the video                    |
-| 🔤 | `link`        | `TEXT`      | Link for the video. Unique along user domain |
-| 🔢 | `duration`    | `INTEGER`   | Duration of the video in seconds             |
-| 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time     |
-| 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time  |
+| ⏹️ | Name          |     Type    | Description                                           |
+|:--:| :---          |    :----:   | :---                                                  |
+| 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the video                 |
+| ✳️ | `user_id`     | `INTEGER`   | Foreign key for the user owner of the video           |
+| 🔤 | `title`       | `TEXT`      | Title of the video                                    |
+| 📄 | `description` | `BLOB`      | Description for the video                             |
+| 🔤 | `link`        | `TEXT`      | URL for a link of the video. Unique along user domain |
+| 🔢 | `duration`    | `INTEGER`   | Duration of the video in seconds                      |
+| 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time              |
+| 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time           |
 
 #### ✍🏽 Annotation
 This entity will represent the annotations for the videos in the system and each record will be stored in the table `annotations` which has following fields:
 
-|    | Name          |     Type    | Description                                 |
-|:--:| :---          |    :----:   | :---                                        |
-| 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the annotation  |
-| ✳️ | `video_id`    | `INTEGER`   | Foreign key for the video                   |
-| 🔢 | `type`        | `INTEGER`   | Annotation type or category                 |
-| 🔢 | `start`       | `INTEGER`   | Start point in the video timeline           |
-| 🔢 | `end`         | `INTEGER`   | End point in the video timeline             |
-| 🔤 | `title`       | `TEXT`      | Title or headline of the annotation         |
-| 📄 | `body`        | `BLOB`      | Optional. Additional notes                  |
-| 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time    |
-| 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time |
+| ⏹️ | Name          |     Type    | Description                                      |
+|:--:| :---          |    :----:   | :---                                             | 
+| 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the annotation       |
+| ✳️ | `video_id`    | `INTEGER`   | Foreign key for the video                        |
+| 🔢 | `type`        | `INTEGER`   | Annotation type or category                      |
+| 🔢 | `start`       | `INTEGER`   | Start point in seconds within the video timeline |
+| 🔢 | `end`         | `INTEGER`   | End point in seconds within the video timeline   |
+| 🔤 | `title`       | `TEXT`      | Title or headline of the annotation              |
+| 📄 | `body`        | `BLOB`      | Optional. Additional notes                       |
+| 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time         |
+| 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time      |
 
 #### 👤 User
 The records for this entity will represent the users in the system and each record will be stored in the table `users` which has following fields:
 
-|    | Name          |     Type    | Description                                   |
+| ⏹️ | Name          |     Type    | Description                                   |
 |:--:| :---          |    :----:   | :---                                          |
 | 🗝️ | `id`          | `INTEGER`   | Auto-numeric identifier for the user          |
 | ✳️ | `nickname`    | `TEXT`      | Nickname of the user. Unique along this table |
