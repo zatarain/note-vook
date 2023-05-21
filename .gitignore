@@ -25,3 +25,6 @@ data/*
 
 # VSCode files
 .vscode/*
+
+# PDF for documentation
+README.pdf

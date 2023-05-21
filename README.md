@@ -4,26 +4,28 @@
 This project aims to be an exercise to discuss about software engineering technical topics like software development, pair programming, testing, deployment, etcetera. More specifically, to discuss the development of an [API (Application Programming Interface)][what-is-api] to **manage annotations for videos** implemented written in [go programming language][go-lang].
 ## 📂 Table of content
 * 📹 [Overview](#📹-overview)
-	- ☑️ [Requirements](#-requirements)
-	- 🤔 [Assumptions](#-assumptions)
+  - ☑️ [Requirements](#-requirements)
+  - 🤔 [Assumptions](#-assumptions)
 * 📐 [Design](#-design)
-	- 📊 [Data model](#-data-model)
-		* 🎞️ [Video](#-video)
-		* ✍🏽 [Annotation](#-annotation)
-		* 👤 [User](#-user)
-	- 🔀 [Workflows](#-workflows)
-	  * 🔀 [User sign up](#-user-sign-up)
-	  * 🔀 [User login](#-user-login)
-	  * 🔀 [Authorised requests](#-authorised-requests)
-	- 🔚 [End-points](#-end-points)
+  - 📊 [Data model](#-data-model)
+    * 🎞️ [Video](#-video)
+    * ✍🏽 [Annotation](#-annotation)
+    * 👤 [User](#-user)
+  - 🔀 [Workflows](#-workflows)
+    * 🔀 [User sign up](#-user-sign-up)
+    * 🔀 [User login](#-user-login)
+    * 🔀 [Authorised requests](#-authorised-requests)
+  - 🔚 [End-points](#-end-points)
 * 🏗️ [Implementation details](#-implementation-details)
   - 📦 [Dependencies](#-dependencies)
-	- 🗄️ [Storage](#-storage)
+  - 🗄️ [Storage](#-storage)
 * ⏯️ [Running](#-running)
+  - 🍏 [Development Mode](#-development-mode)
+  - 🍎 [Production Mode](#-production-mode)
 * ✅ [Testing](#-testing)
   - 🧪 [Manual](#-manual)
-	- ♻️ [Automated](#-automated)
-	- 💯 [Coverage](#-coverage)
+  - ♻️ [Automated](#-automated)
+  - 💯 [Coverage](#-coverage)
 * 📚 [References](#-references)
 
 ## 📹 Overview
@@ -45,14 +47,16 @@ The API should be able to manage a database for the videos and each video may ha
 
 ### 🤔 Assumptions
 This is a small example and it's not taking care about some corner case scenarios like following:
- * The videos can only be annotated by the user creator.
- * A video with the same link can be added multiple times by different users.
- * It's been assumed that the annotation type it's some sort of category and each annotation can only be of one type.
- * Users were not part of the original requirements, but I added them as makes simpler the way to explain the authorisation layer.
- * The user names and passwords aren't validated properly, so the client can provide any input except an empty string.
- * Users can anonymously be created in the system.
- * If we would like access to the API end-point programmatically (e.g. via some automation), we would need to create a new user and their correspondent password for that client.
- * Even if we added the security layer with the authorisation process, this is not secure enough, there are several flaws (e. g. non-secure cookie, non-password charset checking, lack of HTTPS certificates, etcetera), but it's implemented in this way just for didactical purposes.
+* The environment variables and secrets (e. g. `SECRET_TOKEN_KEY` to encode sign the authorisation token) for API configuration are stored in `.env` files (see [Running section](#-running) below for more information).
+* In the real world the secrets should be stored and provisioned by an external system (e. g. AWS Secret Manager). In order to test and play around with the API you can leave them as blank string in the `.env` files.
+* The videos can only be annotated by the user creator.
+* A video with the same link can be added multiple times by different users.
+* It's been assumed that the annotation type it's some sort of category and each annotation can only be of one type.
+* Users were not part of the original requirements, but I added them as makes simpler the way to explain the authorisation layer.
+* The user names and passwords aren't validated properly, so the client can provide any input except an empty string.
+* Users can anonymously be created in the system.
+* If we would like access to the API end-point programmatically (e.g. via some automation), we would need to create a new user and their correspondent password for that client.
+* Even if we added the security layer with the authorisation process, this is not secure enough, there are several flaws (e. g. non-secure cookie, non-password charset checking, lack of HTTPS certificates, etcetera), but it's implemented in this way just for didactical purposes.
 
 ## 📐 Design
 The architecture will be a HTTP API for a microservice that will consume some configuration and use ORM to represent the records in the database tables and also a Model-Controller (MC) pattern design, so the controllers will contain the handlers for the API requests, while the models will represent the data. The service will be stateless, so we won't hold any state (e. g. session management) on the server side, instead we will use authorisation tokens.
@@ -61,39 +65,39 @@ The architecture will be a HTTP API for a microservice that will consume some co
 In order to store and manipulate the data needed the API will rely on the entities shown in following diagram:
 ```mermaid
 erDiagram
-	Video {
-		id integer PK
-		user_id integer FK
-		title string
-		description string
-		link integer
-		duration integer
-		created_at datetime
-		updated_at datetime
-	}
+  Video {
+    id integer PK
+    user_id integer FK
+    title string
+    description string
+    link integer
+    duration integer
+    created_at datetime
+    updated_at datetime
+  }
 
-	Annotation {
-		id integer PK
-		video_id integer FK
-		type enum
-		start integer
-		end integer
-		title string
-		body string
-		created_at datetime
-		updated_at datetime
-	}
+  Annotation {
+    id integer PK
+    video_id integer FK
+    type enum
+    start integer
+    end integer
+    title string
+    notes string
+    created_at datetime
+    updated_at datetime
+  }
 
-	User {
-		id integer PK
-		nickname string
-		password string
-		created_at datetime
-		updated_at datetime
-	}
+  User {
+    id integer PK
+    nickname string
+    password string
+    created_at datetime
+    updated_at datetime
+  }
 
-	User ||--o{ Video : "may own"
-	Annotation }o--|| Video: "may have"
+  User ||--o{ Video : "may own"
+  Annotation }o--|| Video: "may have"
 
 ```
 
@@ -126,7 +130,7 @@ This entity will represent the annotations for the videos in the system and each
 | 🔢 | `start`       | `INTEGER`   | Start point in seconds within the video timeline |
 | 🔢 | `end`         | `INTEGER`   | End point in seconds within the video timeline   |
 | 🔤 | `title`       | `TEXT`      | Title or headline of the annotation              |
-| 📄 | `body`        | `BLOB`      | Optional. Additional notes                       |
+| 📄 | `notes`       | `BLOB`      | Optional. Additional notes                       |
 | 🗓️ | `created_at`  | `NUMERIC`   | Timestamp representing the creation time         |
 | 🗓️ | `updated_at`  | `NUMERIC`   | Timestamp representing the last update time      |
 
@@ -275,6 +279,8 @@ The input for all the API end-points will be always in JSON format and the Cooki
 ## 🏗️ Implementation details
 We are using Golang as programming language for the implementation of the API operations. And the database is a single table in SQLite stored locally.
 
+There is a continuous integration workflow that runs in [GitHub Actions][github-actions] which is responsible to build the API, tun the unit tests if the tests succeed then it generates and pushes the image for the container to DockerHub.
+
 ### 📦 Dependencies
 We are using following libraries for the implementation:
  * **`gin-gonic`.** A web framework to implement a RESTful API via HTTP.
@@ -293,18 +299,40 @@ And also, following ones for the development:
 A Docker container it's not persistent itself, so the Docker Compose file specify a volume to make the database persistent, that volume can be mapped to a host directory.
 
 ## ⏯️ Running
-In order to run the application locally it can be done by using the command line with docker. You can either:
-* Clone [this Git repository][note-vook-repo] and build the image locally
+In order to run the application locally you will need to have Docker installed and internet connection. Using the command line with docker you can either go on two modes:
+* **Production:** Directly downloading [the latest built of the image][note-vook-image] and run it
+* **Development:** Clone [this Git repository][note-vook-repo] and build the image for the container locally
+
+### 🍎 Production Mode
+You can `docker` CLI to download the [latest built of the image][note-vook-image] from Docker Hub, and then run create and run a container as follow:
+```sh
+docker pull zatarain/note-vook:latest
+docker run -v $(pwd)/data:/api/data -e ENVIRONMENT=prod --name notevook -p 4000:4000 zatarain/note-vook:latest
+```
+
+Those commands will download the latest build image generated by the [Continuous Integration and Deployment Pipeline][ci-cd-pipeline] in the [Github Actions of the repository][notevook-actions].
+
+As you can see you need to specify following things:
+* **Volume for Database [`-v $(pwd)/data:/api/data`]:** This will create (if it doesn't already exists) a `data` directory in the current directory where the API will store the database.
+* **Environment [`ENVIRONMENT=prod`]:** This is optional, if you omit this, you will run it in development mode. The value of this variable determines the environment file and database tha will be used:
+
+| `ENVIRONMENT` | File       | Database       | Description                                          |
+|     :---:     | :---:      | :---:          | :---                                                 |
+|               | `.env`     | `data/beta.db` | Development is enabled by leaving the variable empty |
+| `test`        | `test.env` | `data/test.db` | This is used when running the Unit Testing           |
+| `prod`        | `prod.env` | `data/prod.db` | Production environment                               |
+
+* **Port binding [`-p 4000:4000`]:** The image it's built to run the API on port `4000` withing the container, but you can choose to run it in another host port if you want (e. g. `-p 8080:4000`).
+
+### 🍏 Development Mode
+In your terminal, clone repository and build image as follow:
 ```sh
 git clone https://github.com/zatarain/note-vook.git
 cd note-vook
 docker compose up --build
 ```
 
-* Download the [latest built of the image][note-vook-image] from Docker Hub
-```
-docker run --name note-vook -p 4000:4000 zatarain/note-vook:latest
-```
+That will follow the configuration specified in the [`compose.yml`][compose-yml] file to build the image and run the unit testing on building time, and then run the API in development mode.
 
 Then you can follow the steps to play manually with the API with the steps in next section.
 
@@ -315,7 +343,7 @@ Then you can follow the steps to play manually with the API with the steps in ne
 ### ♻️ Automated
 ...
 ### 💯 Coverage
-You can follow the test coverage reports of this project in the CodeCov website:
+You can follow the test coverage reports of this project in the [CodeCov website][codecov-notevook]:
 
 ![Icicle][codecov-icicle]
 
@@ -328,6 +356,9 @@ You can follow the test coverage reports of this project in the CodeCov website:
 * [Crypto/Bcrypt Documentation][bcrypt-docs]
 * [GoJWT Documentation][go-jwt-docs]
 * [GoDotEnv][go-dotenv-docs]
+* [GitHub Actions Documentation][github-actions-docs]
+
+---
 
 [what-is-api]: aws.amazon.com/what-is/api
 [what-is-jwt]: https://jwt.io/introduction
@@ -346,6 +377,12 @@ You can follow the test coverage reports of this project in the CodeCov website:
 [bcrypt-docs]: https://pkg.go.dev/golang.org/x/crypto/bcrypt
 [go-jwt-docs]: https://github.com/golang-jwt/jwt#readme
 [go-dotenv-docs]: https://github.com/joho/godotenv#readme
+[github-actions]: https://github.com/features/actions
+[github-actions-docs]: https://docs.github.com/en/actions
+[codecov-notevook]: https://app.codecov.io/gh/zatarain/note-vook
 [codecov-sunburst]: https://codecov.io/gh/zatarain/note-vook/branch/main/graphs/sunburst.svg?token=bufQuVyLCi
 [codecov-grid]: https://codecov.io/gh/zatarain/note-vook/branch/main/graphs/tree.svg?token=bufQuVyLCi
 [codecov-icicle]: https://codecov.io/gh/zatarain/note-vook/branch/main/graphs/icicle.svg?token=bufQuVyLCi
+[notevook-actions]: https://github.com/zatarain/note-vook/actions
+[ci-cd-pipeline]: https://github.com/zatarain/note-vook/blob/main/.github/workflows/pipeline.yml
+[compose-yml]: https://github.com/zatarain/note-vook/blob/main/compose.yml
