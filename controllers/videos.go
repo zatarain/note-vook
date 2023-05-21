@@ -107,7 +107,8 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		return
 	}
 
-	saving := videos.Database.Model(&video).Updates(input).Error
+	videos.Database.Model(&video)
+	saving := videos.Database.Updates(input).Error
 	if saving != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"error":  "Failed to save the video",

@@ -365,7 +365,6 @@ func TestVideosEdit(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
 
-	/**
 	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
 	video := models.Video{
 		ID:          3,
@@ -377,7 +376,6 @@ func TestVideosEdit(test *testing.T) {
 		CreatedAt:   dummyDate,
 		UpdatedAt:   dummyDate,
 	}
-	/**/
 	current := models.User{
 		ID:       3,
 		Nickname: "three",
@@ -403,6 +401,44 @@ func TestVideosEdit(test *testing.T) {
 		assert.Contains(recorder.Body.String(), "Video not found")
 		database.AssertExpectations(test)
 	})
+
+	test.Run("Should NOT update the video for the current user if there is a problem with database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		search := database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
+			Return(gormFakeSuccess)
+		search.RunFn = func(arguments mock.Arguments) {
+			recordset := arguments.Get(0).(*models.Video)
+			*recordset = video
+		}
+		database.On("Model", mock.AnythingOfType("*models.Video")).Return(gormFakeSuccess)
+		database.On("Updates", mock.AnythingOfType("EditVideoContract")).
+			Return(&gorm.DB{Error: errors.New("unable to update due to unique index violation")})
+
+		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
+		body, _ := json.Marshal(gin.H{
+			"title":       "Dummy video 03",
+			"description": "This is a dummy video number three",
+			"duration":    "1:45",
+			"link":        "https://youtube.com/v/number-three",
+		})
+		request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/videos/%d", video.ID), bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Failed to save the video")
+		assert.Contains(recorder.Body.String(), "unable to update due to unique index violation")
+		database.AssertExpectations(test)
+	})
+
 }
 
 func TestVideosDelete(test *testing.T) {
