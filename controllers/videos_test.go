@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -107,43 +108,19 @@ func TestVideosView(test *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
-	dataset := []models.Video{
-		{
-			ID:          1,
-			UserID:      3,
-			Title:       "Dummy video 01",
-			Description: "This is a dummy video number one",
-			Duration:    100,
-			Link:        "https://youtube.com/v/number-one",
-			CreatedAt:   dummyDate,
-			UpdatedAt:   dummyDate.Add(4 * time.Hour),
-		},
-		{
-			ID:          2,
-			UserID:      4,
-			Title:       "Dummy video 02",
-			Description: "This is a dummy video number two",
-			Duration:    200,
-			Link:        "https://youtube.com/v/number-two",
-			CreatedAt:   dummyDate.Add(-7 * time.Hour),
-			UpdatedAt:   dummyDate,
-		},
-		{
-			ID:          3,
-			UserID:      3,
-			Title:       "Dummy video 03",
-			Description: "This is a dummy video number three",
-			Duration:    50,
-			Link:        "https://youtube.com/v/number-three",
-			CreatedAt:   dummyDate,
-			UpdatedAt:   dummyDate,
-		},
+	video := models.Video{
+		ID:          3,
+		UserID:      3,
+		Title:       "Dummy video 03",
+		Description: "This is a dummy video number three",
+		Duration:    50,
+		Link:        "https://youtube.com/v/number-three",
+		CreatedAt:   dummyDate,
+		UpdatedAt:   dummyDate,
 	}
-
-	users := []models.User{
-		{ID: 3, Nickname: "three"},
-		{ID: 4, Nickname: "four"},
-		{ID: 5, Nickname: "five"},
+	current := models.User{
+		ID:       3,
+		Nickname: "three",
 	}
 
 	test.Run("Should return the video for the current user", func(test *testing.T) {
@@ -151,8 +128,6 @@ func TestVideosView(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		current := users[0]
-		video := dataset[2]
 		call := database.
 			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
 			Return(&gorm.DB{Error: nil})
@@ -171,6 +146,27 @@ func TestVideosView(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusOK, recorder.Code)
 		assert.Equal(expected, recorder.Body.Bytes())
+		database.AssertExpectations(test)
+	})
+
+	test.Run("Should return HTTP 404 if video it's not in database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "10", current.ID).
+			Return(&gorm.DB{Error: errors.New("no results")})
+		server.GET("/videos/:id", authorise(&current), videos.View)
+		request, _ := http.NewRequest(http.MethodGet, "/videos/10", nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusNotFound, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Video not found")
 		database.AssertExpectations(test)
 	})
 }
