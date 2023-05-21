@@ -99,6 +99,7 @@ func TestMigrateDatabase(test *testing.T) {
 		database := new(mocks.MockedDataAccessInterface)
 		database.On(
 			"AutoMigrate",
+			mock.AnythingOfType("*models.Annotation"),
 			mock.AnythingOfType("*models.User"),
 			mock.AnythingOfType("*models.Video"),
 		).Return(nil)

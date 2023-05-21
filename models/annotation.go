@@ -4,7 +4,7 @@ import "time"
 
 type Annotation struct {
 	ID        int       `json:"id" gorm:"primary_key"`
-	VideoID   int       `json:"user_id" gorm:"index:idx_video"`
+	VideoID   int       `json:"video_id" gorm:"index:idx_video"`
 	Type      int       `json:"type" gorm:"index:idx_type"`
 	Title     string    `json:"title"`
 	Notes     string    `json:"notes"`
