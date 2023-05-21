@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"bou.ke/monkey"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUnmarshalJSON(test *testing.T) {
 	assert := assert.New(test)
-
-	// Teardown test suite
-	defer monkey.UnpatchAll()
 
 	numbers := []struct {
 		Input    string
@@ -122,5 +118,35 @@ func TestUnmarshalJSON(test *testing.T) {
 				assert.Contains(exception.Error(), testcase.Reason)
 			},
 		)
+	}
+}
+
+func TestMarshalJSON(test *testing.T) {
+	assert := assert.New(test)
+	testcases := []struct {
+		Input    TimeStamp
+		Expected string
+	}{
+		{Input: 600, Expected: `"00:10:00"`},
+		{Input: 3600, Expected: `"01:00:00"`},
+		{Input: 45, Expected: `"00:00:45"`},
+		{Input: 7, Expected: `"00:00:07"`},
+		{Input: 36359, Expected: `"10:05:59"`},
+		// Pending test case, it should expect "24:05:01"
+		{Input: 24*3600 + 5*60 + 1, Expected: `"00:05:01"`},
+	}
+	for _, testcase := range testcases {
+		test.Run(fmt.Sprintf("Should format correctly from %v to '%s'", testcase.Input, testcase.Expected), func(test *testing.T) {
+			// Arrange
+			time := &testcase.Input
+			expected := []byte(testcase.Expected)
+
+			// Act
+			actual, exception := time.MarshalJSON()
+
+			// Assert
+			assert.Nil(exception)
+			assert.Equal(expected, actual)
+		})
 	}
 }
