@@ -255,11 +255,11 @@ func TestVideosAdd(test *testing.T) {
 
 	invalidTestcases := []struct {
 		Expected string
-		Body     gin.H
+		Input    gin.H
 	}{
 		{
 			Expected: "Field validation for 'Title' failed on the 'required' tag",
-			Body: gin.H{
+			Input: gin.H{
 				"description": "This is a dummy video number three",
 				"duration":    "1:45",
 				"link":        "https://youtube.com/v/number-three",
@@ -267,7 +267,7 @@ func TestVideosAdd(test *testing.T) {
 		},
 		{
 			Expected: "Field validation for 'Title' failed on the 'required' tag",
-			Body: gin.H{
+			Input: gin.H{
 				"title":       "",
 				"description": "This is a dummy video number three",
 				"duration":    "1:45",
@@ -276,7 +276,7 @@ func TestVideosAdd(test *testing.T) {
 		},
 		{
 			Expected: "Field validation for 'Link' failed on the 'required' tag",
-			Body: gin.H{
+			Input: gin.H{
 				"title":       "Dummy video 03",
 				"description": "This is a dummy video number three",
 				"duration":    "1:45",
@@ -284,7 +284,7 @@ func TestVideosAdd(test *testing.T) {
 		},
 		{
 			Expected: "Field validation for 'Duration' failed on the 'required' tag",
-			Body: gin.H{
+			Input: gin.H{
 				"title":       "Dummy video 03",
 				"description": "This is a dummy video number three",
 				"link":        "https://youtube.com/v/number-three",
@@ -292,7 +292,7 @@ func TestVideosAdd(test *testing.T) {
 		},
 		{
 			Expected: "Field validation for 'Link' failed on the 'url' tag",
-			Body: gin.H{
+			Input: gin.H{
 				"title":       "Dummy video 03",
 				"description": "This is a dummy video number three",
 				"duration":    "1:45",
@@ -301,7 +301,7 @@ func TestVideosAdd(test *testing.T) {
 		},
 		{
 			Expected: "time: invalid duration",
-			Body: gin.H{
+			Input: gin.H{
 				"title":       "Dummy video 03",
 				"description": "This is a dummy video number three",
 				"duration":    "hello",
@@ -321,7 +321,7 @@ func TestVideosAdd(test *testing.T) {
 				Return(&gorm.DB{Error: nil})
 			server.POST("/videos", authorise(&current), videos.Add)
 
-			body, _ := json.Marshal(testcase.Body)
+			body, _ := json.Marshal(testcase.Input)
 			request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer([]byte(body)))
 			recorder := httptest.NewRecorder()
 
@@ -335,4 +335,29 @@ func TestVideosAdd(test *testing.T) {
 			database.AssertNotCalled(test, "Create", mock.AnythingOfType("*models.Video"))
 		})
 	}
+
+	test.Run("Should response HTTP 400 when there is a problem with database (e. g. unique index)", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		database.
+			On("Create", mock.AnythingOfType("*models.Video")).
+			Return(&gorm.DB{Error: errors.New("unique index violation")})
+		server.POST("/videos", authorise(&current), videos.Add)
+
+		body, _ := json.Marshal(validTestcases[0].Input)
+		request, _ := http.NewRequest(http.MethodPost, "/videos", bytes.NewBuffer([]byte(body)))
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Failed to save the video")
+		assert.Contains(recorder.Body.String(), "unique index violation")
+		database.AssertExpectations(test)
+	})
+
 }
