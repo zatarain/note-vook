@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,6 +16,12 @@ import (
 	"github.com/zatarain/note-vook/models"
 	"gorm.io/gorm"
 )
+
+func authorise(current *models.User) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		context.Set("user", current)
+	}
+}
 
 func TestVideosIndex(test *testing.T) {
 	assert := assert.New(test)
@@ -39,8 +46,8 @@ func TestVideosIndex(test *testing.T) {
 			Description: "This is a dummy video number two",
 			Duration:    200,
 			Link:        "https://youtube.com/v/number-two",
-			CreatedAt:   dummyDate,
-			UpdatedAt:   dummyDate.Add(7 * time.Hour),
+			CreatedAt:   dummyDate.Add(-7 * time.Hour),
+			UpdatedAt:   dummyDate,
 		},
 		{
 			ID:          3,
@@ -58,12 +65,6 @@ func TestVideosIndex(test *testing.T) {
 		{ID: 3, Nickname: "three"},
 		{ID: 4, Nickname: "four"},
 		{ID: 5, Nickname: "five"},
-	}
-
-	authorise := func(current *models.User) gin.HandlerFunc {
-		return func(context *gin.Context) {
-			context.Set("user", current)
-		}
 	}
 
 	resultsets := map[int][]models.Video{
@@ -84,7 +85,6 @@ func TestVideosIndex(test *testing.T) {
 			call.RunFn = func(arguments mock.Arguments) {
 				recordset := arguments.Get(0).(*[]models.Video)
 				*recordset = resultsets[current.ID]
-				//call.ReturnArguments = mock.Arguments{db, *recordset}
 			}
 			server.GET("/videos", authorise(&current), videos.Index)
 			request, _ := http.NewRequest(http.MethodGet, "/videos", nil)
@@ -100,6 +100,79 @@ func TestVideosIndex(test *testing.T) {
 			database.AssertExpectations(test)
 		})
 	}
+}
+
+func TestVideosView(test *testing.T) {
+	assert := assert.New(test)
+	gin.SetMode(gin.TestMode)
+
+	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
+	dataset := []models.Video{
+		{
+			ID:          1,
+			UserID:      3,
+			Title:       "Dummy video 01",
+			Description: "This is a dummy video number one",
+			Duration:    100,
+			Link:        "https://youtube.com/v/number-one",
+			CreatedAt:   dummyDate,
+			UpdatedAt:   dummyDate.Add(4 * time.Hour),
+		},
+		{
+			ID:          2,
+			UserID:      4,
+			Title:       "Dummy video 02",
+			Description: "This is a dummy video number two",
+			Duration:    200,
+			Link:        "https://youtube.com/v/number-two",
+			CreatedAt:   dummyDate.Add(-7 * time.Hour),
+			UpdatedAt:   dummyDate,
+		},
+		{
+			ID:          3,
+			UserID:      3,
+			Title:       "Dummy video 03",
+			Description: "This is a dummy video number three",
+			Duration:    50,
+			Link:        "https://youtube.com/v/number-three",
+			CreatedAt:   dummyDate,
+			UpdatedAt:   dummyDate,
+		},
+	}
+
+	users := []models.User{
+		{ID: 3, Nickname: "three"},
+		{ID: 4, Nickname: "four"},
+		{ID: 5, Nickname: "five"},
+	}
+
+	test.Run("Should return the video for the current user", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		current := users[0]
+		video := dataset[2]
+		call := database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
+			Return(&gorm.DB{Error: nil})
+		call.RunFn = func(arguments mock.Arguments) {
+			recordset := arguments.Get(0).(*models.Video)
+			*recordset = video
+		}
+		server.GET("/videos/:id", authorise(&current), videos.View)
+		request, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/videos/%d", video.ID), nil)
+		recorder := httptest.NewRecorder()
+		expected, _ := json.Marshal(&video)
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusOK, recorder.Code)
+		assert.Equal(expected, recorder.Body.Bytes())
+		database.AssertExpectations(test)
+	})
 }
 
 /**
