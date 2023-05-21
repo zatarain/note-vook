@@ -359,5 +359,92 @@ func TestVideosAdd(test *testing.T) {
 		assert.Contains(recorder.Body.String(), "unique index violation")
 		database.AssertExpectations(test)
 	})
+}
 
+func TestVideosEdit(test *testing.T) {
+	assert := assert.New(test)
+	gin.SetMode(gin.TestMode)
+
+	/**
+	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
+	video := models.Video{
+		ID:          3,
+		UserID:      3,
+		Title:       "Dummy video 03",
+		Description: "This is a dummy video number three",
+		Duration:    50,
+		Link:        "https://youtube.com/v/number-three",
+		CreatedAt:   dummyDate,
+		UpdatedAt:   dummyDate,
+	}
+	/**/
+	current := models.User{
+		ID:       3,
+		Nickname: "three",
+	}
+
+	test.Run("Should return HTTP 404 if video it's not in database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "75", current.ID).
+			Return(&gorm.DB{Error: errors.New("no results")})
+		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
+		request, _ := http.NewRequest(http.MethodPatch, "/videos/75", nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusNotFound, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Video not found")
+		database.AssertExpectations(test)
+	})
+}
+
+func TestVideosDelete(test *testing.T) {
+	assert := assert.New(test)
+	gin.SetMode(gin.TestMode)
+
+	/**
+	dummyDate, _ := time.Parse(time.DateOnly, "2021-01-01")
+	video := models.Video{
+		ID:          3,
+		UserID:      3,
+		Title:       "Dummy video 03",
+		Description: "This is a dummy video number three",
+		Duration:    50,
+		Link:        "https://youtube.com/v/number-three",
+		CreatedAt:   dummyDate,
+		UpdatedAt:   dummyDate,
+	}
+	/**/
+	current := models.User{
+		ID:       3,
+		Nickname: "three",
+	}
+
+	test.Run("Should return HTTP 404 if video it's not in database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "32", current.ID).
+			Return(&gorm.DB{Error: errors.New("no results")})
+		server.DELETE("/videos/:id", authorise(&current), videos.Edit)
+		request, _ := http.NewRequest(http.MethodDelete, "/videos/32", nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusNotFound, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Video not found")
+		database.AssertExpectations(test)
+	})
 }

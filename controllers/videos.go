@@ -69,33 +69,27 @@ func (videos *VideosController) Add(context *gin.Context) {
 	context.JSON(http.StatusCreated, &video)
 }
 
-func (videos *VideosController) View(context *gin.Context) {
+func (videos *VideosController) search(video *models.Video, context *gin.Context) {
 	id := context.Param("id")
 	user := CurrentUser(context)
-	var video models.Video
-	searching := videos.Database.First(&video, "id = ? AND user_id = ?", id, user.ID).Error
+	searching := videos.Database.First(video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
-		context.JSON(http.StatusNotFound, gin.H{
+		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error":  "Video not found",
 			"reason": searching.Error(),
 		})
-		return
 	}
+}
+
+func (videos *VideosController) View(context *gin.Context) {
+	var video models.Video
+	videos.search(&video, context)
 	context.JSON(http.StatusOK, &video)
 }
 
 func (videos *VideosController) Edit(context *gin.Context) {
-	id := context.Param("id")
-	user := CurrentUser(context)
 	var video models.Video
-	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
-	if searching != nil {
-		context.JSON(http.StatusNotFound, gin.H{
-			"error":  "Video not found",
-			"reason": searching.Error(),
-		})
-		return
-	}
+	videos.search(&video, context)
 
 	// Trying to bind input from JSON
 	var input EditVideoContract
@@ -120,17 +114,8 @@ func (videos *VideosController) Edit(context *gin.Context) {
 }
 
 func (videos *VideosController) Delete(context *gin.Context) {
-	id := context.Param("id")
-	user := CurrentUser(context)
 	var video models.Video
-	searching := videos.Database.Where("id = ? AND user_id = ?", id, user.ID).First(&video).Error
-	if searching != nil {
-		context.JSON(http.StatusNotFound, gin.H{
-			"error":  "Video not found",
-			"reason": searching.Error(),
-		})
-		return
-	}
+	videos.search(&video, context)
 
 	deleting := videos.Database.Delete(&video).Error
 	if deleting != nil {
