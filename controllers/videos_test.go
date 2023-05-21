@@ -449,7 +449,36 @@ func TestVideosDelete(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusOK, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Video successfully deleted")
-		//database.AssertExpectations(test)
+		database.AssertExpectations(test)
+	})
+
+	test.Run("Should NOT delete the video for the current user if there is a problem with database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+		search := database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
+			Return(&gorm.DB{Error: nil})
+		search.RunFn = func(arguments mock.Arguments) {
+			recordset := arguments.Get(0).(*models.Video)
+			*recordset = video
+		}
+		database.On("Delete", mock.AnythingOfType("*models.Video")).
+			Return(&gorm.DB{Error: errors.New("unable to delete record from database")})
+
+		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
+		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Failed to delete the video")
+		assert.Contains(recorder.Body.String(), "unable to delete record from database")
+		database.AssertExpectations(test)
 	})
 
 	test.Run("Should return HTTP 404 if video it's not in database when trying to delete it", func(test *testing.T) {
