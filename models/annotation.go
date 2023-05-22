@@ -16,5 +16,5 @@ type Annotation struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	// Associations
-	Video Video `json:"video" gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Video *Video `json:"video" gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
