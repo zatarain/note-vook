@@ -6,19 +6,24 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/zatarain/note-vook/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var Database *gorm.DB
 
 func ConnectToDatabase() *sql.DB {
+	level, _ := strconv.Atoi(os.Getenv("LOG_LEVEL"))
 	filename := fmt.Sprintf("%s/%s", path.Dir(os.Getenv("GOMOD")), os.Getenv("DATABASE"))
 	log.Println("Database filename: ", filename)
 	dialector := sqlite.Open(filename)
-	database, exception := gorm.Open(dialector, &gorm.Config{})
+	database, exception := gorm.Open(dialector, &gorm.Config{
+		Logger: logger.Default.LogMode(logger.LogLevel(level)),
+	})
 	if exception != nil {
 		log.Panic("Failed to connect to the database.", exception.Error())
 		return nil

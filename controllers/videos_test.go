@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"net/http"
 	"net/http/httptest"
 
+	"bou.ke/monkey"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -416,8 +418,14 @@ func TestVideosEdit(test *testing.T) {
 			*recordset = video
 		}
 		database.On("Model", mock.AnythingOfType("*models.Video")).Return(gormFakeSuccess)
-		database.On("Updates", mock.AnythingOfType("EditVideoContract")).
-			Return(&gorm.DB{Error: errors.New("unable to update due to unique index violation")})
+		monkey.PatchInstanceMethod(reflect.TypeOf(gormFakeSuccess), "Updates", func(*gorm.DB, interface{}) *gorm.DB {
+			return &gorm.DB{Error: errors.New("unable to update due to unique index violation")}
+		})
+
+		defer monkey.UnpatchAll()
+
+		// database.On("Updates", mock.AnythingOfType("EditVideoContract")).
+		// 	Return(&gorm.DB{Error: errors.New("unable to update due to unique index violation")})
 
 		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
 		body, _ := json.Marshal(gin.H{
@@ -438,7 +446,6 @@ func TestVideosEdit(test *testing.T) {
 		assert.Contains(recorder.Body.String(), "unable to update due to unique index violation")
 		database.AssertExpectations(test)
 	})
-
 }
 
 func TestVideosDelete(test *testing.T) {
