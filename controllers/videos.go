@@ -74,7 +74,7 @@ func (videos *VideosController) search(video *models.Video, context *gin.Context
 	id := context.Param("id")
 	user := CurrentUser(context)
 	searching := videos.Database.
-		Joins("LEFT JOIN annotations ON videos.id = annotations.video_id").
+		Preload("Annotations").
 		First(video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
@@ -110,6 +110,7 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		return
 	}
 
+	// Try to save in the database
 	video.UpdatedAt = time.Now()
 	saving := videos.Database.Model(&video).Updates(input).Error
 	if saving != nil {
@@ -120,6 +121,7 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		return
 	}
 
+	// Send OK status with updated video
 	context.JSON(http.StatusOK, &video)
 }
 

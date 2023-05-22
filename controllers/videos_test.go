@@ -133,7 +133,7 @@ func TestVideosView(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		monkey.PatchInstanceMethod(
 			reflect.TypeOf(gormFakeSuccess),
 			"First",
@@ -166,7 +166,7 @@ func TestVideosView(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		monkey.PatchInstanceMethod(
 			reflect.TypeOf(gormFakeSuccess),
 			"First",
@@ -406,7 +406,7 @@ func TestVideosEdit(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		var arguments struct {
 			ValueType  string
 			Conditions []interface{}
@@ -487,7 +487,7 @@ func TestVideosEdit(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		var arguments struct {
 			ValueType  string
 			Conditions []interface{}
@@ -528,7 +528,7 @@ func TestVideosEdit(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		var arguments struct {
 			ValueType  string
 			Conditions []interface{}
@@ -628,7 +628,7 @@ func TestVideosDelete(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		monkey.PatchInstanceMethod(
 			reflect.TypeOf(gormFakeSuccess),
 			"First",
@@ -662,7 +662,7 @@ func TestVideosDelete(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		var arguments struct {
 			ValueType  string
 			Conditions []interface{}
@@ -709,7 +709,7 @@ func TestVideosDelete(test *testing.T) {
 		videos := &VideosController{Database: database}
 
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
 		var arguments struct {
 			ValueType  string
 			Conditions []interface{}
