@@ -329,7 +329,7 @@ func TestVideosAdd(test *testing.T) {
 	}
 
 	for _, testcase := range invalidTestcases {
-		test.Run("Should NOT try to create for current user with invalid inputs", func(test *testing.T) {
+		test.Run("Should NOT try to create video for current user with invalid inputs", func(test *testing.T) {
 			// Arrange
 			server := gin.New()
 			database := new(mocks.MockedDataAccessInterface)
@@ -480,6 +480,53 @@ func TestVideosEdit(test *testing.T) {
 		database.AssertExpectations(test)
 	})
 
+	invalidInputs := []struct {
+		Input    gin.H
+		Expected string
+	}{
+		{
+			Input: gin.H{
+				"title":       "Third dummy video",
+				"description": "This is the third dummy video",
+				"duration":    "6-15",
+				"link":        "https://youtube.com/v/third",
+			},
+			Expected: "time: unknown unit",
+		},
+		{
+			Input: gin.H{
+				"title":       "Third dummy video",
+				"description": "This is the third dummy video",
+				"duration":    "6:15",
+				"link":        "hello world",
+			},
+			Expected: "Field validation for 'Link' failed on the 'url' tag",
+		},
+	}
+
+	for _, testcase := range invalidInputs {
+		test.Run("Should NOT update the video for the current user for invalid inputs ", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			videos := &VideosController{Database: database}
+
+			server.PATCH("/videos/:id", authorise(&current), videos.Edit)
+			body, _ := json.Marshal(testcase.Input)
+			request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/videos/%d", video.ID), bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), "Failed to read input")
+			assert.Contains(recorder.Body.String(), testcase.Expected)
+			database.AssertExpectations(test)
+		})
+	}
+
 	test.Run("Should return HTTP 404 if video it's not in database when trying to edit it", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
@@ -504,7 +551,13 @@ func TestVideosEdit(test *testing.T) {
 		defer monkey.UnpatchAll()
 
 		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
-		request, _ := http.NewRequest(http.MethodPatch, "/videos/75", nil)
+		body, _ := json.Marshal(gin.H{
+			"title":       "Third dummy video",
+			"description": "This is the third dummy video",
+			"duration":    "6:15",
+			"link":        "https://youtube.com/v/third",
+		})
+		request, _ := http.NewRequest(http.MethodPatch, "/videos/75", bytes.NewBuffer(body))
 		recorder := httptest.NewRecorder()
 
 		// Act

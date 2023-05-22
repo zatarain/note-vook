@@ -20,10 +20,10 @@ type AddVideoContract struct {
 }
 
 type EditVideoContract struct {
-	Title       string           `json:"title"`
+	Title       string           `json:"title" binding:"omitempty,required"`
 	Description string           `json:"description"`
 	Link        string           `json:"link" binding:"omitempty,url"`
-	Duration    models.TimeStamp `json:"duration"`
+	Duration    models.TimeStamp `json:"duration" binding:"omitempty,required"`
 }
 
 func CurrentUser(context *gin.Context) *models.User {
@@ -95,11 +95,6 @@ func (videos *VideosController) View(context *gin.Context) {
 }
 
 func (videos *VideosController) Edit(context *gin.Context) {
-	var video models.Video
-	if !videos.search(&video, context) {
-		return
-	}
-
 	// Trying to bind input from JSON
 	var input EditVideoContract
 	if binding := context.ShouldBindJSON(&input); binding != nil {
@@ -107,6 +102,12 @@ func (videos *VideosController) Edit(context *gin.Context) {
 			"error":  "Failed to read input",
 			"reason": binding.Error(),
 		})
+		return
+	}
+
+	// Look for the video
+	var video models.Video
+	if !videos.search(&video, context) {
 		return
 	}
 
