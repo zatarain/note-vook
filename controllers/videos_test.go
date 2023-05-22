@@ -131,6 +131,7 @@ func TestVideosView(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
+
 		gormFakeSuccess := &gorm.DB{Error: nil}
 		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
 		monkey.PatchInstanceMethod(
@@ -488,15 +489,20 @@ func TestVideosDelete(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
+
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(gormFakeSuccess).Run(
-			func(arguments mock.Arguments) {
-				recordset := arguments.Get(0).(*models.Video)
+		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
 				*recordset = video
+				return gormFakeSuccess
 			},
 		)
+		defer monkey.UnpatchAll()
+
 		database.On("Delete", mock.AnythingOfType("*models.Video")).Return(gormFakeSuccess)
 
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
@@ -517,13 +523,26 @@ func TestVideosDelete(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		search := database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(&gorm.DB{Error: nil})
-		search.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
 		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		database.On("Delete", mock.AnythingOfType("*models.Video")).
 			Return(&gorm.DB{Error: errors.New("unable to delete record from database")})
 
@@ -538,6 +557,11 @@ func TestVideosDelete(test *testing.T) {
 		assert.Equal(http.StatusBadRequest, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Failed to delete the video")
 		assert.Contains(recorder.Body.String(), "unable to delete record from database")
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(video.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
 		database.AssertExpectations(test)
 	})
 
@@ -546,9 +570,24 @@ func TestVideosDelete(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "32", current.ID).
-			Return(&gorm.DB{Error: errors.New("no results")})
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, "/videos/32", nil)
 		recorder := httptest.NewRecorder()
@@ -559,6 +598,11 @@ func TestVideosDelete(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusNotFound, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Video not found")
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal("32", arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
 		database.AssertExpectations(test)
 	})
 }
