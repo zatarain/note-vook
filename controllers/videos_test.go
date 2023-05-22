@@ -399,6 +399,87 @@ func TestVideosEdit(test *testing.T) {
 		Nickname: "three",
 	}
 
+	test.Run("Should update the video for the current user gracefully", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		videos := &VideosController{Database: database}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+
+		updatedAt := dummyDate.Add(1000 * time.Hour)
+		monkey.Patch(time.Now, func() time.Time { return updatedAt })
+		updated := &models.Video{
+			ID:          video.ID,
+			UserID:      current.ID,
+			Title:       video.Title,
+			Description: video.Description,
+			Link:        video.Link,
+			Duration:    video.Duration,
+			Annotations: video.Annotations,
+			CreatedAt:   video.CreatedAt,
+			UpdatedAt:   updatedAt,
+		}
+		database.On("Model", updated).Return(gormFakeSuccess)
+		var input EditVideoContract
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Updates",
+			func(DB *gorm.DB, value interface{}) *gorm.DB {
+				input = value.(EditVideoContract)
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
+		body, _ := json.Marshal(gin.H{
+			"title":       "Third dummy video",
+			"description": "This is the third dummy video",
+			"duration":    "6:15",
+			"link":        "https://youtube.com/v/third",
+		})
+		request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/videos/%d", video.ID), bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
+		expected, _ := json.Marshal(&updated)
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusOK, recorder.Code)
+		assert.Equal(recorder.Body.Bytes(), expected)
+
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(video.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+		assert.Equal(EditVideoContract{
+			Title:       "Third dummy video",
+			Description: "This is the third dummy video",
+			Duration:    6*60 + 15,
+			Link:        "https://youtube.com/v/third",
+		}, input)
+		database.AssertExpectations(test)
+	})
+
 	test.Run("Should return HTTP 404 if video it's not in database when trying to edit it", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
