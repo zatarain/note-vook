@@ -12,20 +12,37 @@ type AnnotationsController struct {
 }
 
 type AddAnnotationContract struct {
-	VideoID int              `json:"video_id" binding:"required"`
-	Type    int              `json:"type"`
+	VideoID uint             `json:"video_id" binding:"required"`
+	Type    uint             `json:"type"`
 	Title   string           `json:"title" binding:"required"`
 	Notes   string           `json:"notes"`
 	Start   models.TimeStamp `json:"start" binding:"required,ltefield=End"`
 	End     models.TimeStamp `json:"end" binding:"required"`
 }
 
-func (annotations *AnnotationsController) findVideo(context *gin.Context, video *models.Video, id int) bool {
+func (annotations *AnnotationsController) findVideo(context *gin.Context, video *models.Video, id uint) bool {
 	user := CurrentUser(context)
 	searching := annotations.Database.First(video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error":  "Video not found",
+			"reason": searching.Error(),
+		})
+		return false
+	}
+	return true
+}
+
+func (annotations *AnnotationsController) search(context *gin.Context, annotation *models.Annotation) bool {
+	user := CurrentUser(context)
+	id := context.Param("id")
+	searching := annotations.Database.
+		Joins("LEFT JOIN videos ON videos.id = annotations.video_id").
+		Where("annotations.id = ? AND user_id = ?", id, user.ID).
+		First(annotation).Error
+	if searching != nil {
+		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"error":  "Annotation not found",
 			"reason": searching.Error(),
 		})
 		return false
@@ -95,4 +112,28 @@ func (annotations *AnnotationsController) Add(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusCreated, &annotation)
+}
+
+func (annotations *AnnotationsController) Edit(context *gin.Context) {
+}
+
+func (annotations *AnnotationsController) Delete(context *gin.Context) {
+	var annotation models.Annotation
+	if !annotations.search(context, &annotation) {
+		return
+	}
+
+	deleting := annotations.Database.Delete(&annotation).Error
+	if deleting != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"error":  "Failed to delete the annotation",
+			"reason": deleting.Error(),
+		})
+		return
+	}
+
+	context.JSON(http.StatusOK, gin.H{
+		"message": "Video successfully deleted",
+		"data":    annotation,
+	})
 }

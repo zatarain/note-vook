@@ -6,7 +6,7 @@ import (
 )
 
 type User struct {
-	ID        int       `json:"id" gorm:"primary_key"`
+	ID        uint      `json:"id" gorm:"primary_key"`
 	Nickname  string    `json:"nickname" gorm:"unique"`
 	Password  string    `json:"password"`
 	CreatedAt time.Time `json:"created_at"`

@@ -25,6 +25,7 @@ func TestSetup(test *testing.T) {
 		server.On("DELETE", "/videos/:id", authorisationHandler, endPointHandler).Return(server)
 
 		server.On("POST", "/annotations", authorisationHandler, endPointHandler).Return(server)
+		server.On("DELETE", "/annotations", authorisationHandler, endPointHandler).Return(server)
 
 		// Act
 		Setup(server)
