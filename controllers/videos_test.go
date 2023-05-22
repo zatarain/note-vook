@@ -71,7 +71,7 @@ func TestVideosIndex(test *testing.T) {
 		{ID: 5, Nickname: "five"},
 	}
 
-	resultsets := map[int][]models.Video{
+	resultsets := map[uint][]models.Video{
 		3: {dataset[0], dataset[2]},
 		4: {dataset[1]},
 		5: {},
@@ -131,13 +131,19 @@ func TestVideosView(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		call := database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(&gorm.DB{Error: nil})
-		call.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
-		}
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.GET("/videos/:id", authorise(&current), videos.View)
 		request, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/videos/%d", video.ID), nil)
 		recorder := httptest.NewRecorder()
@@ -157,9 +163,18 @@ func TestVideosView(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "10", current.ID).
-			Return(&gorm.DB{Error: errors.New("no results")})
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "LEFT JOIN annotations ON videos.id = annotations.video_id").Return(gormFakeSuccess)
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.GET("/videos/:id", authorise(&current), videos.View)
 		request, _ := http.NewRequest(http.MethodGet, "/videos/10", nil)
 		recorder := httptest.NewRecorder()
@@ -473,14 +488,16 @@ func TestVideosDelete(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		search := database.
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.
 			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(&gorm.DB{Error: nil})
-		search.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
-		}
-		database.On("Delete", mock.AnythingOfType("*models.Video")).Return(&gorm.DB{Error: nil})
+			Return(gormFakeSuccess).Run(
+			func(arguments mock.Arguments) {
+				recordset := arguments.Get(0).(*models.Video)
+				*recordset = video
+			},
+		)
+		database.On("Delete", mock.AnythingOfType("*models.Video")).Return(gormFakeSuccess)
 
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)

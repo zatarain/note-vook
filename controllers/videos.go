@@ -73,7 +73,8 @@ func (videos *VideosController) Add(context *gin.Context) {
 func (videos *VideosController) search(video *models.Video, context *gin.Context) bool {
 	id := context.Param("id")
 	user := CurrentUser(context)
-	searching := videos.Database.Model(video).Preload("Annotations").
+	searching := videos.Database.
+		Joins("LEFT JOIN annotations ON videos.id = annotations.video_id").
 		First(video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
