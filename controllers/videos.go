@@ -20,10 +20,10 @@ type AddVideoContract struct {
 }
 
 type EditVideoContract struct {
-	Title       string           `json:"title" binding:"omitempty,required"`
+	Title       string           `json:"title"`
 	Description string           `json:"description"`
 	Link        string           `json:"link" binding:"omitempty,url"`
-	Duration    models.TimeStamp `json:"duration" binding:"omitempty,required"`
+	Duration    models.TimeStamp `json:"duration"`
 }
 
 func CurrentUser(context *gin.Context) *models.User {
