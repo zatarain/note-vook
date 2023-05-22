@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/zatarain/note-vook/models"
@@ -20,6 +21,14 @@ type AddAnnotationContract struct {
 	End     models.TimeStamp `json:"end" binding:"required"`
 }
 
+type EditAnnotationContract struct {
+	Type  uint             `json:"type"`
+	Title string           `json:"title"`
+	Notes string           `json:"notes"`
+	Start models.TimeStamp `json:"start" binding:"ltefield=End"`
+	End   models.TimeStamp `json:"end"`
+}
+
 func (annotations *AnnotationsController) findVideo(context *gin.Context, video *models.Video, id uint) bool {
 	user := CurrentUser(context)
 	searching := annotations.Database.First(video, "id = ? AND user_id = ?", id, user.ID).Error
@@ -36,10 +45,9 @@ func (annotations *AnnotationsController) findVideo(context *gin.Context, video 
 func (annotations *AnnotationsController) search(context *gin.Context, annotation *models.Annotation) bool {
 	user := CurrentUser(context)
 	id := context.Param("id")
+
 	searching := annotations.Database.
-		Joins("LEFT JOIN videos ON videos.id = annotations.video_id").
-		Where("annotations.id = ? AND user_id = ?", id, user.ID).
-		First(annotation).Error
+		Joins("Video").First(annotation, "annotations.id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error":  "Annotation not found",
@@ -111,18 +119,55 @@ func (annotations *AnnotationsController) Add(context *gin.Context) {
 		return
 	}
 
+	// Send status created with the new annotation
 	context.JSON(http.StatusCreated, &annotation)
 }
 
 func (annotations *AnnotationsController) Edit(context *gin.Context) {
-}
-
-func (annotations *AnnotationsController) Delete(context *gin.Context) {
+	// Look for the annotation we want to edit
 	var annotation models.Annotation
 	if !annotations.search(context, &annotation) {
 		return
 	}
 
+	// Try to bind the input from JSON
+	var input EditAnnotationContract
+
+	if binding := context.ShouldBindJSON(&input); binding != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"error":  "Failed to read input",
+			"reason": binding.Error(),
+		})
+		return
+	}
+
+	// Check the Start and End are valid within the video Duration
+	if !annotations.CheckInterval(context, input.Start, input.End, annotation.Video.Duration) {
+		return
+	}
+
+	annotation.UpdatedAt = time.Now()
+	saving := annotations.Database.Model(&annotation).Updates(input).Error
+	if saving != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"error":  "Failed to save the annotation",
+			"reason": saving.Error(),
+		})
+		return
+	}
+
+	// Send success status with new values
+	context.JSON(http.StatusOK, &annotation)
+}
+
+func (annotations *AnnotationsController) Delete(context *gin.Context) {
+	// Look for the annotation we want to delete
+	var annotation models.Annotation
+	if !annotations.search(context, &annotation) {
+		return
+	}
+
+	// Try to delete the annotation from database
 	deleting := annotations.Database.Delete(&annotation).Error
 	if deleting != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
@@ -132,8 +177,8 @@ func (annotations *AnnotationsController) Delete(context *gin.Context) {
 		return
 	}
 
+	// Send success message
 	context.JSON(http.StatusOK, gin.H{
-		"message": "Video successfully deleted",
-		"data":    annotation,
+		"message": "Annotation successfully deleted",
 	})
 }

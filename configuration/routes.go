@@ -33,5 +33,6 @@ func Setup(server gin.IRouter) {
 	server.DELETE("/videos/:id", users.Authorise, videos.Delete)
 
 	server.POST("/annotations", users.Authorise, annotations.Add)
+	server.PATCH("/annotations/:id", users.Authorise, annotations.Edit)
 	server.DELETE("/annotations/:id", users.Authorise, annotations.Delete)
 }
