@@ -12,6 +12,22 @@ type MockedDataAccessInterface struct {
 	mock.Mock
 }
 
+// Association provides a mock function with given fields: _a0
+func (_m *MockedDataAccessInterface) Association(_a0 string) *gorm.Association {
+	ret := _m.Called(_a0)
+
+	var r0 *gorm.Association
+	if rf, ok := ret.Get(0).(func(string) *gorm.Association); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gorm.Association)
+		}
+	}
+
+	return r0
+}
+
 // AutoMigrate provides a mock function with given fields: _a0
 func (_m *MockedDataAccessInterface) AutoMigrate(_a0 ...interface{}) error {
 	var _ca []interface{}
@@ -91,6 +107,25 @@ func (_m *MockedDataAccessInterface) First(_a0 interface{}, _a1 ...interface{}) 
 
 	var r0 *gorm.DB
 	if rf, ok := ret.Get(0).(func(interface{}, ...interface{}) *gorm.DB); ok {
+		r0 = rf(_a0, _a1...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gorm.DB)
+		}
+	}
+
+	return r0
+}
+
+// Joins provides a mock function with given fields: _a0, _a1
+func (_m *MockedDataAccessInterface) Joins(_a0 string, _a1 ...interface{}) *gorm.DB {
+	var _ca []interface{}
+	_ca = append(_ca, _a0)
+	_ca = append(_ca, _a1...)
+	ret := _m.Called(_ca...)
+
+	var r0 *gorm.DB
+	if rf, ok := ret.Get(0).(func(string, ...interface{}) *gorm.DB); ok {
 		r0 = rf(_a0, _a1...)
 	} else {
 		if ret.Get(0) != nil {

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/zatarain/note-vook/models"
@@ -72,7 +73,8 @@ func (videos *VideosController) Add(context *gin.Context) {
 func (videos *VideosController) search(video *models.Video, context *gin.Context) bool {
 	id := context.Param("id")
 	user := CurrentUser(context)
-	searching := videos.Database.First(video, "id = ? AND user_id = ?", id, user.ID).Error
+	searching := videos.Database.Model(video).Preload("Annotations").
+		First(video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error":  "Video not found",
@@ -107,6 +109,7 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		return
 	}
 
+	video.UpdatedAt = time.Now()
 	saving := videos.Database.Model(&video).Updates(input).Error
 	if saving != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
