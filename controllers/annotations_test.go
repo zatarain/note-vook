@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -255,6 +256,96 @@ func TestAnnotationsDelete(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusOK, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Annotation successfully deleted")
+
+		assert.Equal("*models.Annotation", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("annotations.id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(annotation.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+		database.AssertExpectations(test)
+	})
+
+	test.Run("Should response with HTTP 404 when it doesn't exits in the database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "Video").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		server.DELETE("/annotations/:id", authorise(&current), annotations.Delete)
+		request, _ := http.NewRequest(http.MethodDelete, "/annotations/95", nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusNotFound, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Annotation not found")
+
+		assert.Equal("*models.Annotation", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("annotations.id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal("95", arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+		database.AssertExpectations(test)
+	})
+
+	test.Run("Should response with HTTP 400 when the database returns an error", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "Video").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Annotation)
+				*recordset = *annotation
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		database.On("Delete", mock.AnythingOfType("*models.Annotation")).
+			Return(&gorm.DB{Error: errors.New("unable to delete")})
+
+		server.DELETE("/annotations/:id", authorise(&current), annotations.Delete)
+		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/annotations/%d", annotation.ID), nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Failed to delete the annotation")
+		assert.Contains(recorder.Body.String(), "unable to delete")
 
 		assert.Equal("*models.Annotation", arguments.ValueType)
 		assert.Len(arguments.Conditions, 3)
