@@ -1,0 +1,4 @@
+{
+	"error": "Failed to insert user into table users",
+	"reason": "UNIQUE constraint failed: users.nickname"
+}

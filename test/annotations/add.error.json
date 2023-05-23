@@ -1,0 +1,4 @@
+{
+	"error": "Invalid time interval",
+	"reason": "start and end must be positive and less or equal than video duration"
+}
