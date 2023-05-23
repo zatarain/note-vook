@@ -700,13 +700,38 @@ func TestVideosDelete(test *testing.T) {
 		Link:        "https://youtube.com/v/number-three",
 		CreatedAt:   dummyDate,
 		UpdatedAt:   dummyDate,
+
+		Annotations: []models.Annotation{
+			{
+				ID:        4,
+				VideoID:   3,
+				Title:     "my dummy annotation 4",
+				Notes:     "my dummy notes 4",
+				Start:     2,
+				End:       8,
+				Video:     nil,
+				CreatedAt: dummyDate.Add(7 * time.Hour),
+				UpdatedAt: dummyDate.Add(8 * time.Hour),
+			},
+			{
+				ID:        7,
+				VideoID:   3,
+				Title:     "my dummy annotation 7",
+				Notes:     "my dummy notes 7",
+				Start:     25,
+				End:       35,
+				Video:     nil,
+				CreatedAt: dummyDate.Add(9 * time.Hour),
+				UpdatedAt: dummyDate.Add(9 * time.Hour),
+			},
+		},
 	}
 	current := models.User{
 		ID:       3,
 		Nickname: "three",
 	}
 
-	test.Run("Should delete the video for the current user", func(test *testing.T) {
+	test.Run("Should delete the video for the current user and its annotations", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
@@ -724,8 +749,16 @@ func TestVideosDelete(test *testing.T) {
 			},
 		)
 		defer monkey.UnpatchAll()
-
-		database.On("Delete", mock.AnythingOfType("*models.Video")).Return(gormFakeSuccess)
+		database.On("Select", "Annotations").Return(gormFakeSuccess)
+		var removed *models.Video
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Delete",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				removed = value.(*models.Video)
+				return gormFakeSuccess
+			},
+		)
 
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)
@@ -737,6 +770,7 @@ func TestVideosDelete(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusOK, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Video successfully deleted")
+		assert.Equal(&video, removed)
 		database.AssertExpectations(test)
 	})
 
@@ -765,8 +799,16 @@ func TestVideosDelete(test *testing.T) {
 		)
 		defer monkey.UnpatchAll()
 
-		database.On("Delete", mock.AnythingOfType("*models.Video")).
-			Return(&gorm.DB{Error: errors.New("unable to delete record from database")})
+		database.On("Select", "Annotations").Return(gormFakeSuccess)
+		var triedToBeRemoved *models.Video
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Delete",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				triedToBeRemoved = value.(*models.Video)
+				return &gorm.DB{Error: errors.New("unable to delete record from database")}
+			},
+		)
 
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)
@@ -777,6 +819,7 @@ func TestVideosDelete(test *testing.T) {
 
 		// Assert
 		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Equal(&video, triedToBeRemoved)
 		assert.Contains(recorder.Body.String(), "Failed to delete the video")
 		assert.Contains(recorder.Body.String(), "unable to delete record from database")
 		assert.Equal("*models.Video", arguments.ValueType)

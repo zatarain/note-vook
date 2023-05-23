@@ -132,7 +132,7 @@ func (videos *VideosController) Delete(context *gin.Context) {
 		return
 	}
 
-	deleting := videos.Database.Delete(&video).Error
+	deleting := videos.Database.Select("Annotations").Delete(&video).Error
 	if deleting != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"error":  "Failed to delete the video",
