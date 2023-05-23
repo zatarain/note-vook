@@ -396,6 +396,17 @@ func TestAnnotationsEdit(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
 	date, _ := time.Parse(time.DateOnly, "2021-01-01")
+	video := models.Video{
+		ID:          1,
+		UserID:      3,
+		Title:       "Dummy video 01",
+		Description: "This is a dummy video number one",
+		Duration:    7*60 + 45,
+		Link:        "https://youtube.com/v/number-one",
+		CreatedAt:   date,
+		UpdatedAt:   date.Add(4 * time.Hour),
+	}
+
 	current := models.User{
 		ID:       3,
 		Nickname: "dummy",
@@ -411,6 +422,7 @@ func TestAnnotationsEdit(test *testing.T) {
 		End:       30,
 		CreatedAt: date,
 		UpdatedAt: date.Add(40 * time.Hour),
+		Video:     &video,
 	}
 
 	invalidInputs := []struct {
@@ -475,6 +487,79 @@ func TestAnnotationsEdit(test *testing.T) {
 			assert.Equal(http.StatusBadRequest, recorder.Code)
 			assert.Contains(recorder.Body.String(), "Failed to read input")
 			assert.Contains(recorder.Body.String(), testcase.Expected)
+			database.AssertExpectations(test)
+		})
+	}
+
+	invalidTimeRanges := []gin.H{
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    video.Duration + 7,
+			"end":      video.Duration + 10,
+		},
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    7,
+			"end":      video.Duration + 10,
+		},
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    -7,
+			"end":      video.Duration + 10,
+		},
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    -17,
+			"end":      video.Duration - 10,
+		},
+	}
+
+	for _, testcase := range invalidTimeRanges {
+		test.Run("Should NOT save annotation either Start or End are out of bounds of video Duration", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			annotations := &AnnotationsController{Database: database}
+
+			gormFakeSuccess := &gorm.DB{Error: nil}
+			database.On("Joins", "Video").Return(gormFakeSuccess)
+			var arguments struct {
+				ValueType  string
+				Conditions []interface{}
+			}
+			monkey.PatchInstanceMethod(
+				reflect.TypeOf(gormFakeSuccess),
+				"First",
+				func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+					recordset := value.(*models.Annotation)
+					*recordset = *annotation
+					arguments.ValueType = reflect.TypeOf(value).String()
+					arguments.Conditions = conditions
+					return gormFakeSuccess
+				},
+			)
+			defer monkey.UnpatchAll()
+
+			server.PATCH("/annotations/:id", authorise(&current), annotations.Edit)
+			body, _ := json.Marshal(&testcase)
+			request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), "Invalid time interval")
+			assert.Contains(recorder.Body.String(), "start and end must be positive and less or equal than video duration")
 			database.AssertExpectations(test)
 		})
 	}
