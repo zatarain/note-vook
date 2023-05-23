@@ -1,0 +1,4 @@
+{
+	"error": "Failed to read input",
+	"reason": "Key: 'EditAnnotationContract.Start' Error:Field validation for 'Start' failed on the 'ltefield' tag"
+}

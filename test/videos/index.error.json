@@ -1,0 +1,4 @@
+{
+	"error": "Unauthorised",
+	"reason": "http: named cookie not present"
+}

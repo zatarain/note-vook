@@ -1,0 +1,4 @@
+{
+	"error": "Failed to save the video",
+	"reason": "UNIQUE constraint failed: videos.user_id, videos.link"
+}
