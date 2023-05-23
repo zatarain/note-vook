@@ -307,7 +307,7 @@ And also, following ones for the development:
  * **`monkey`.** To perform monkey patching on the unit testing.
 
 ### 🗄️ Storage
-A Docker container it's not persistent itself, so the Docker Compose file specify a volume to make the database persistent, that volume can be mapped to a host directory.
+A Docker container it's not persistent itself, so the Docker Compose file specify a volume to make the database persistent, that volume can be mapped to a host directory. The [following sections](#-running) will explain how to do that in order to run the API locally.
 
 ## ⏯️ Running
 In order to run the application locally you will need to have Docker installed and internet connection. Using the command line with docker you can either go on two modes:
@@ -356,7 +356,7 @@ Then you can follow the steps to play manually with the API with the steps in ne
 
 ## ✅ Testing
 
-This project is able to be tested in manual way and with automated unit testing.
+This project is able to be tested in manual way and with automated unit testing. This section will explain how can you play around with the API once you run it following the steps of the [previous section](#-running).
 
 ### 🧪 Manual
 In order to play around with the API, there are `JSON` files in the directory [`test/`][test-data-json] of the repository for each of [the end-points in the API](#-end-points). There are JSON files for *input* for the `POST` and `PATCH` end-points and there are examples of *outputs* and possible *error* messages returned by the API.
@@ -406,6 +406,10 @@ Or also within Docker desktop application:
 
 ![image](https://github.com/zatarain/note-vook/assets/539783/a36e15fc-c046-41a6-960e-db96729dcf2b)
 
+Even more, if you have a SQLite database client (e. g. [SQLite Viewer for VSCode][sqlite-viewer]) you may see how the records are in the Database:
+
+![image](https://github.com/zatarain/note-vook/assets/539783/d829ecb6-0f8e-4651-9acf-4565e4169c32)
+
 ### ♻️ Automated
 Automated unit testing has been implemented and they run on each push and pull requests within the GitHub Actions Pipeline [![CI/CD Pipeline](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml/badge.svg)](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml) and when the Docker image is build. Following is how they are shown in [GitHub website][notevook-actions]:
 
@@ -420,7 +424,7 @@ You can follow the test coverage reports of this project in the [CodeCov website
 
 ![Icicle][codecov-icicle]
 
-**IMPORTANT NOTE:** Even that we can see there is a good coverage [![codecov](https://codecov.io/gh/zatarain/note-vook/branch/main/graph/badge.svg?token=bufQuVyLCi)](https://codecov.io/gh/zatarain/note-vook), that doesn't mean the API is flawless, as it was mentioned in the [Assumptions section](#-assumptions) there are many chances to improve.
+**IMPORTANT NOTE:** Even that we can see there is a good coverage [![codecov](https://codecov.io/gh/zatarain/note-vook/branch/main/graph/badge.svg?token=bufQuVyLCi)](https://codecov.io/gh/zatarain/note-vook), that doesn't mean the API is flawless, as it was mentioned in the [Assumptions section](#-assumptions) there are many chances to improve and for sure it may have even more.
 
 ## 📚 References
 * [SQLite Data Types][sqlite-data-types]
@@ -466,3 +470,4 @@ You can follow the test coverage reports of this project in the [CodeCov website
 [data-driven-testing]: https://en.wikipedia.org/wiki/Data-driven_testing
 [test-data-json]: https://github.com/zatarain/note-vook/tree/main/test
 [mocks-directory]: https://github.com/zatarain/note-vook/tree/main/mocks
+[sqlite-viewer]: https://marketplace.visualstudio.com/items?itemName=qwtel.sqlite-viewer
