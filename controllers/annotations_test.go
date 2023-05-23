@@ -3,11 +3,14 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
+	"bou.ke/monkey"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -192,5 +195,72 @@ func TestAnnotationsAdd(test *testing.T) {
 
 		// Assert
 		assert.True(true)
+	})
+}
+
+func TestAnnotationsDelete(test *testing.T) {
+	assert := assert.New(test)
+	gin.SetMode(gin.TestMode)
+	date, _ := time.Parse(time.DateOnly, "2021-01-01")
+	current := models.User{
+		ID:       3,
+		Nickname: "dummy",
+	}
+
+	annotation := &models.Annotation{
+		ID:        12,
+		VideoID:   7,
+		Type:      0,
+		Title:     "My annotation",
+		Notes:     "",
+		Start:     15,
+		End:       30,
+		CreatedAt: date,
+		UpdatedAt: date.Add(40 * time.Hour),
+	}
+	test.Run("Should delete the annotation", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "Video").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Annotation)
+				*recordset = *annotation
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		database.On("Delete", mock.AnythingOfType("*models.Annotation")).Return(gormFakeSuccess)
+
+		server.DELETE("/annotations/:id", authorise(&current), annotations.Delete)
+		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/annotations/%d", annotation.ID), nil)
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusOK, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Annotation successfully deleted")
+
+		assert.Equal("*models.Annotation", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("annotations.id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(annotation.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+		database.AssertExpectations(test)
 	})
 }
