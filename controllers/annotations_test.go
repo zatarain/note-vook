@@ -395,23 +395,89 @@ func TestAnnotationsAdd(test *testing.T) {
 func TestAnnotationsEdit(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)
-	// date, _ := time.Parse(time.DateOnly, "2021-01-01")
+	date, _ := time.Parse(time.DateOnly, "2021-01-01")
 	current := models.User{
 		ID:       3,
 		Nickname: "dummy",
 	}
 
-	// annotation := &models.Annotation{
-	// 	ID:        12,
-	// 	VideoID:   7,
-	// 	Type:      0,
-	// 	Title:     "My annotation",
-	// 	Notes:     "",
-	// 	Start:     15,
-	// 	End:       30,
-	// 	CreatedAt: date,
-	// 	UpdatedAt: date.Add(40 * time.Hour),
-	// }
+	annotation := &models.Annotation{
+		ID:        12,
+		VideoID:   7,
+		Type:      0,
+		Title:     "My annotation",
+		Notes:     "",
+		Start:     15,
+		End:       30,
+		CreatedAt: date,
+		UpdatedAt: date.Add(40 * time.Hour),
+	}
+
+	invalidInputs := []struct {
+		Input    gin.H
+		Expected string
+	}{
+		{
+			Input: gin.H{
+				"type":  "wrong",
+				"title": "My dummy annotation",
+				"notes": "My additional notes",
+				"start": 10,
+				"end":   30,
+			},
+			Expected: "cannot unmarshal string into Go struct field EditAnnotationContract.type of type uint",
+		},
+		{
+			Input: gin.H{
+				"type":  1,
+				"title": "My dummy annotation",
+				"start": "7-45",
+				"end":   "07m30s",
+			},
+			Expected: "time: unknown unit",
+		},
+		{
+			Input: gin.H{
+				"type":  1,
+				"title": "My dummy annotation",
+				"start": "7:28",
+				"end":   "7-30",
+			},
+			Expected: "time: unknown unit",
+		},
+		{
+			Input: gin.H{
+				"type":  1,
+				"title": "My dummy annotation",
+				"start": "01:25",
+				"end":   "01:10",
+			},
+			Expected: "Field validation for 'Start' failed on the 'ltefield' tag",
+		},
+	}
+
+	for _, testcase := range invalidInputs {
+		test.Run("Should NOT save annotation on invalid body input", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			annotations := &AnnotationsController{Database: database}
+
+			server.PATCH("/annotations/:id", authorise(&current), annotations.Edit)
+			body, _ := json.Marshal(&testcase.Input)
+			request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), "Failed to read input")
+			assert.Contains(recorder.Body.String(), testcase.Expected)
+			database.AssertExpectations(test)
+		})
+	}
 
 	test.Run("Should response with HTTP 404 when it doesn't exits in the database", func(test *testing.T) {
 		// Arrange
