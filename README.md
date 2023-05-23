@@ -1,8 +1,19 @@
+---
+title: Project `NoteVook`
+author: [Ulises Tirado Zatarain]
+date: 2023-05-19
+subject: Markdown
+keywords: [golang, api, sqlite]
+lang: en-gb
+...
+
 # 🧑🏽‍💻 Project: `NoteVook` 
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![CI/CD Pipeline](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml/badge.svg)](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml) [![codecov](https://codecov.io/gh/zatarain/note-vook/branch/main/graph/badge.svg?token=bufQuVyLCi)](https://codecov.io/gh/zatarain/note-vook) [![Go Report Card](https://goreportcard.com/badge/github.com/zatarain/note-vook)](https://goreportcard.com/report/github.com/zatarain/note-vook)
 
 This project aims to be an exercise to discuss about software engineering technical topics like software development, pair programming, testing, deployment, etcetera. More specifically, to discuss the development of an [API (Application Programming Interface)][what-is-api] to **manage annotations for videos** implemented written in [go programming language][go-lang].
+
 ## 📂 Table of content
+
 * 📹 [Overview](#📹-overview)
   - ☑️ [Requirements](#-requirements)
   - 🤔 [Assumptions](#-assumptions)
@@ -32,9 +43,10 @@ This project aims to be an exercise to discuss about software engineering techni
 This simple API aims to manage a video annotations database, this means we will have a collection of videos and we will be able to add text notes for some given interval of time of the videos. Additionally we would like to manage some basic security layer based-on [JWT (JSON Web Token)][what-is-jwt]. The application should be ready to deploy as a [Docker][docker] container, so we need to generate an image for it available to download in [Docker Hub][docker-hub].
 
 ### ☑️ Requirements
-The API should be able to manage a database for the videos and each video may have many annotations related to it. An annotation allow s to capture time related information about the video. For example, we may want to create an annotation that references to a part of the video from `04:00:00` to `00:05:00`.
+The API should be able to manage a database for the videos and each video may have many annotations related to it. An annotation allow s to capture time related information about the video. For example, we may want to create an annotation that references to a part of the video from `00:04:00` to `00:05:00`.
 
  Allowing the client to perform following operations:
+
  * **List all the vide.** It should return the list of all videos in the system.
  * **Create a vide.** It should insert a new record for video provided by the client that includes some metadata.
  * **Update a video.** It should allow the client to update the information of a given video.
@@ -47,9 +59,12 @@ The API should be able to manage a database for the videos and each video may ha
 
 ### 🤔 Assumptions
 This is a small example and it's not taking care about some corner case scenarios like following:
+
 * The environment variables and secrets (e. g. `SECRET_TOKEN_KEY` to encode sign the authorisation token) for API configuration are stored in `.env` files (see [Running section](#-running) below for more information).
 * In the real world the secrets should be stored and provisioned by an external system (e. g. AWS Secret Manager). In order to test and play around with the API you can leave them as blank string in the `.env` files.
 * The videos can only be annotated by the user creator.
+* In order to keep things simple, there is no ACID transactions for the database. We will remove the annotations in cascade though, so if we delete a vide from database we will remove its annotations too.
+* The users won't be able to edit the video ID for an annotation. If the users want to do so, it's better to remove the annotation from the video, then add a new one in the other video. 
 * A video with the same link can be added multiple times by different users.
 * It's been assumed that the annotation type it's some sort of category and each annotation can only be of one type.
 * Users were not part of the original requirements, but I added them as makes simpler the way to explain the authorisation layer.
@@ -63,6 +78,7 @@ The architecture will be a HTTP API for a microservice that will consume some co
 
 ### 📊 Data model
 In order to store and manipulate the data needed the API will rely on the entities shown in following diagram:
+
 ```mermaid
 erDiagram
   Video {
@@ -150,6 +166,7 @@ There are three general workflows in this API: user sign up, user login and all 
 
 #### 🔀 User sign up
 Following diagram describes the happy path for a user signup operation:
+
 ```mermaid
 sequenceDiagram
 
@@ -180,6 +197,7 @@ gin.Engine->>-Unknown: HTTP 201 Created (JSON with message)
 
 #### 🔀 User login
 Following diagram describes the happy path for a user login operation:
+
 ```mermaid
 sequenceDiagram
 
@@ -213,6 +231,7 @@ gin.Engine->>-Unknown: HTTP 200 OK JSON with message and Authorisation Cookie wi
 
 #### 🔀 Authorised requests
 Following diagram describes the happy path for any other operation that needs authorisation, meaning after user has been logged in:
+
 ```mermaid
 sequenceDiagram
 
@@ -283,6 +302,7 @@ There is a continuous integration workflow that runs in [GitHub Actions][github-
 
 ### 📦 Dependencies
 We are using following libraries for the implementation:
+
  * **`gin-gonic`.** A web framework to implement a RESTful API via HTTP.
  * **`gorm`.** A library for Object Relational Model (ORM) in order to represent the records in the database as relational objects.
  * **`gorm/drivers/sqlite`.** Driver that manage SQLite dialect and connect to the database.
@@ -300,6 +320,7 @@ A Docker container it's not persistent itself, so the Docker Compose file specif
 
 ## ⏯️ Running
 In order to run the application locally you will need to have Docker installed and internet connection. Using the command line with docker you can either go on two modes:
+
 * **Production:** Directly downloading [the latest built of the image][note-vook-image] and run it
 * **Development:** Clone [this Git repository][note-vook-repo] and build the image for the container locally
 
@@ -307,12 +328,18 @@ In order to run the application locally you will need to have Docker installed a
 You can `docker` CLI to download the [latest built of the image][note-vook-image] from Docker Hub, and then run create and run a container as follow:
 ```sh
 docker pull zatarain/note-vook:latest
-docker run -v $(pwd)/data:/api/data -e ENVIRONMENT=prod --name notevook -p 4000:4000 zatarain/note-vook:latest
+docker run \
+  -v $(pwd)/data:/api/data \
+  -e ENVIRONMENT=prod \
+  --name notevook \
+  -p 4000:4000 \
+  zatarain/note-vook:latest
 ```
 
 Those commands will download the latest build image generated by the [Continuous Integration and Deployment Pipeline][ci-cd-pipeline] in the [Github Actions of the repository][notevook-actions].
 
 As you can see you need to specify following things:
+
 * **Volume for Database [`-v $(pwd)/data:/api/data`]:** This will create (if it doesn't already exists) a `data` directory in the current directory where the API will store the database.
 * **Environment [`ENVIRONMENT=prod`]:** This is optional, if you omit this, you will run it in development mode. The value of this variable determines the environment file and database tha will be used:
 
@@ -338,10 +365,13 @@ Then you can follow the steps to play manually with the API with the steps in ne
 
 ## ✅ Testing
 ...
+
 ### 🧪 Manual
 ...
+
 ### ♻️ Automated
 ...
+
 ### 💯 Coverage
 You can follow the test coverage reports of this project in the [CodeCov website][codecov-notevook]:
 

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"net/http"
 	"net/http/httptest"
 
+	"bou.ke/monkey"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -69,7 +71,7 @@ func TestVideosIndex(test *testing.T) {
 		{ID: 5, Nickname: "five"},
 	}
 
-	resultsets := map[int][]models.Video{
+	resultsets := map[uint][]models.Video{
 		3: {dataset[0], dataset[2]},
 		4: {dataset[1]},
 		5: {},
@@ -129,13 +131,20 @@ func TestVideosView(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		call := database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(&gorm.DB{Error: nil})
-		call.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
-		}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.GET("/videos/:id", authorise(&current), videos.View)
 		request, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/videos/%d", video.ID), nil)
 		recorder := httptest.NewRecorder()
@@ -155,9 +164,18 @@ func TestVideosView(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "10", current.ID).
-			Return(&gorm.DB{Error: errors.New("no results")})
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.GET("/videos/:id", authorise(&current), videos.View)
 		request, _ := http.NewRequest(http.MethodGet, "/videos/10", nil)
 		recorder := httptest.NewRecorder()
@@ -311,7 +329,7 @@ func TestVideosAdd(test *testing.T) {
 	}
 
 	for _, testcase := range invalidTestcases {
-		test.Run("Should NOT try to create for current user with invalid inputs", func(test *testing.T) {
+		test.Run("Should NOT try to create video for current user with invalid inputs", func(test *testing.T) {
 			// Arrange
 			server := gin.New()
 			database := new(mocks.MockedDataAccessInterface)
@@ -381,16 +399,197 @@ func TestVideosEdit(test *testing.T) {
 		Nickname: "three",
 	}
 
+	validInputs := []struct {
+		Input                 gin.H
+		ExpectedCapturedInput EditVideoContract
+	}{
+		{
+			Input: gin.H{
+				"title":       "Third dummy video",
+				"description": "This is the third dummy video",
+				"duration":    "6:15",
+				"link":        "https://youtube.com/v/third",
+			},
+			ExpectedCapturedInput: EditVideoContract{
+				Title:       "Third dummy video",
+				Description: "This is the third dummy video",
+				Duration:    6*60 + 15,
+				Link:        "https://youtube.com/v/third",
+			},
+		},
+		{
+			Input: gin.H{
+				"title":       "Third dummy video",
+				"description": "This is the third dummy video",
+				"duration":    "6:15",
+			},
+			ExpectedCapturedInput: EditVideoContract{
+				Title:       "Third dummy video",
+				Description: "This is the third dummy video",
+				Duration:    6*60 + 15,
+			},
+		},
+		{
+			Input: gin.H{
+				"duration": "3:45",
+			},
+			ExpectedCapturedInput: EditVideoContract{
+				Duration: 3*60 + 45,
+			},
+		},
+	}
+
+	for _, testcase := range validInputs {
+		test.Run("Should update the video for the current user gracefully", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			videos := &VideosController{Database: database}
+
+			gormFakeSuccess := &gorm.DB{Error: nil}
+			database.On("Preload", "Annotations").Return(gormFakeSuccess)
+			var arguments struct {
+				ValueType  string
+				Conditions []interface{}
+			}
+			monkey.PatchInstanceMethod(
+				reflect.TypeOf(gormFakeSuccess),
+				"First",
+				func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+					recordset := value.(*models.Video)
+					*recordset = video
+					arguments.ValueType = reflect.TypeOf(value).String()
+					arguments.Conditions = conditions
+					return gormFakeSuccess
+				},
+			)
+
+			updatedAt := dummyDate.Add(1000 * time.Hour)
+			monkey.Patch(time.Now, func() time.Time { return updatedAt })
+			updated := &models.Video{
+				ID:          video.ID,
+				UserID:      current.ID,
+				Title:       video.Title,
+				Description: video.Description,
+				Link:        video.Link,
+				Duration:    video.Duration,
+				Annotations: video.Annotations,
+				CreatedAt:   video.CreatedAt,
+				UpdatedAt:   updatedAt,
+			}
+			database.On("Model", updated).Return(gormFakeSuccess)
+			var input EditVideoContract
+			monkey.PatchInstanceMethod(
+				reflect.TypeOf(gormFakeSuccess),
+				"Updates",
+				func(DB *gorm.DB, value interface{}) *gorm.DB {
+					input = value.(EditVideoContract)
+					return gormFakeSuccess
+				},
+			)
+			defer monkey.UnpatchAll()
+
+			server.PATCH("/videos/:id", authorise(&current), videos.Edit)
+			body, _ := json.Marshal(testcase.Input)
+			request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/videos/%d", video.ID), bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+			expected, _ := json.Marshal(&updated)
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusOK, recorder.Code)
+			assert.Equal(expected, recorder.Body.Bytes())
+
+			assert.Equal("*models.Video", arguments.ValueType)
+			assert.Len(arguments.Conditions, 3)
+			assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+			assert.Equal(fmt.Sprint(video.ID), arguments.Conditions[1])
+			assert.Equal(current.ID, arguments.Conditions[2])
+			assert.Equal(testcase.ExpectedCapturedInput, input)
+			database.AssertExpectations(test)
+		})
+	}
+
+	invalidInputs := []struct {
+		Input    gin.H
+		Expected string
+	}{
+		{
+			Input: gin.H{
+				"title":       "Third dummy video",
+				"description": "This is the third dummy video",
+				"duration":    "6-15",
+				"link":        "https://youtube.com/v/third",
+			},
+			Expected: "time: unknown unit",
+		},
+		{
+			Input: gin.H{
+				"title":       "Third dummy video",
+				"description": "This is the third dummy video",
+				"duration":    "6:15",
+				"link":        "hello world",
+			},
+			Expected: "Field validation for 'Link' failed on the 'url' tag",
+		},
+	}
+
+	for _, testcase := range invalidInputs {
+		test.Run("Should NOT update the video for the current user for invalid inputs ", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			videos := &VideosController{Database: database}
+
+			server.PATCH("/videos/:id", authorise(&current), videos.Edit)
+			body, _ := json.Marshal(testcase.Input)
+			request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/videos/%d", video.ID), bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), "Failed to read input")
+			assert.Contains(recorder.Body.String(), testcase.Expected)
+			database.AssertExpectations(test)
+		})
+	}
+
 	test.Run("Should return HTTP 404 if video it's not in database when trying to edit it", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "75", current.ID).
-			Return(&gorm.DB{Error: errors.New("no results")})
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
-		request, _ := http.NewRequest(http.MethodPatch, "/videos/75", nil)
+		body, _ := json.Marshal(gin.H{
+			"title":       "Third dummy video",
+			"description": "This is the third dummy video",
+			"duration":    "6:15",
+			"link":        "https://youtube.com/v/third",
+		})
+		request, _ := http.NewRequest(http.MethodPatch, "/videos/75", bytes.NewBuffer(body))
 		recorder := httptest.NewRecorder()
 
 		// Act
@@ -399,6 +598,11 @@ func TestVideosEdit(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusNotFound, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Video not found")
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal("75", arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
 		database.AssertExpectations(test)
 	})
 
@@ -407,24 +611,55 @@ func TestVideosEdit(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
+
 		gormFakeSuccess := &gorm.DB{Error: nil}
-		search := database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(gormFakeSuccess)
-		search.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
 		}
-		database.On("Model", mock.AnythingOfType("*models.Video")).Return(gormFakeSuccess)
-		database.On("Updates", mock.AnythingOfType("EditVideoContract")).
-			Return(&gorm.DB{Error: errors.New("unable to update due to unique index violation")})
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+
+		updatedAt := dummyDate.Add(1000 * time.Hour)
+		monkey.Patch(time.Now, func() time.Time { return updatedAt })
+		database.On("Model", &models.Video{
+			ID:          video.ID,
+			UserID:      current.ID,
+			Title:       video.Title,
+			Description: video.Description,
+			Link:        video.Link,
+			Duration:    video.Duration,
+			Annotations: video.Annotations,
+			CreatedAt:   video.CreatedAt,
+			UpdatedAt:   updatedAt,
+		}).Return(gormFakeSuccess)
+		var input EditVideoContract
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Updates",
+			func(DB *gorm.DB, value interface{}) *gorm.DB {
+				input = value.(EditVideoContract)
+				return &gorm.DB{Error: errors.New("unable to update due to unique index violation")}
+			},
+		)
+		defer monkey.UnpatchAll()
 
 		server.PATCH("/videos/:id", authorise(&current), videos.Edit)
 		body, _ := json.Marshal(gin.H{
-			"title":       "Dummy video 03",
-			"description": "This is a dummy video number three",
-			"duration":    "1:45",
-			"link":        "https://youtube.com/v/number-three",
+			"title":       "Third dummy video",
+			"description": "This is the third dummy video",
+			"duration":    "6:15",
+			"link":        "https://youtube.com/v/third",
 		})
 		request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/videos/%d", video.ID), bytes.NewBuffer(body))
 		recorder := httptest.NewRecorder()
@@ -436,9 +671,19 @@ func TestVideosEdit(test *testing.T) {
 		assert.Equal(http.StatusBadRequest, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Failed to save the video")
 		assert.Contains(recorder.Body.String(), "unable to update due to unique index violation")
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(video.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+		assert.Equal(EditVideoContract{
+			Title:       "Third dummy video",
+			Description: "This is the third dummy video",
+			Duration:    6*60 + 15,
+			Link:        "https://youtube.com/v/third",
+		}, input)
 		database.AssertExpectations(test)
 	})
-
 }
 
 func TestVideosDelete(test *testing.T) {
@@ -455,25 +700,65 @@ func TestVideosDelete(test *testing.T) {
 		Link:        "https://youtube.com/v/number-three",
 		CreatedAt:   dummyDate,
 		UpdatedAt:   dummyDate,
+
+		Annotations: []models.Annotation{
+			{
+				ID:        4,
+				VideoID:   3,
+				Title:     "my dummy annotation 4",
+				Notes:     "my dummy notes 4",
+				Start:     2,
+				End:       8,
+				Video:     nil,
+				CreatedAt: dummyDate.Add(7 * time.Hour),
+				UpdatedAt: dummyDate.Add(8 * time.Hour),
+			},
+			{
+				ID:        7,
+				VideoID:   3,
+				Title:     "my dummy annotation 7",
+				Notes:     "my dummy notes 7",
+				Start:     25,
+				End:       35,
+				Video:     nil,
+				CreatedAt: dummyDate.Add(9 * time.Hour),
+				UpdatedAt: dummyDate.Add(9 * time.Hour),
+			},
+		},
 	}
 	current := models.User{
 		ID:       3,
 		Nickname: "three",
 	}
 
-	test.Run("Should delete the video for the current user", func(test *testing.T) {
+	test.Run("Should delete the video for the current user and its annotations", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		search := database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(&gorm.DB{Error: nil})
-		search.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
-		}
-		database.On("Delete", mock.AnythingOfType("*models.Video")).Return(&gorm.DB{Error: nil})
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+		database.On("Select", "Annotations").Return(gormFakeSuccess)
+		var removed *models.Video
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Delete",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				removed = value.(*models.Video)
+				return gormFakeSuccess
+			},
+		)
 
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)
@@ -485,6 +770,7 @@ func TestVideosDelete(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusOK, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Video successfully deleted")
+		assert.Equal(&video, removed)
 		database.AssertExpectations(test)
 	})
 
@@ -493,15 +779,36 @@ func TestVideosDelete(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		search := database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", fmt.Sprint(video.ID), current.ID).
-			Return(&gorm.DB{Error: nil})
-		search.RunFn = func(arguments mock.Arguments) {
-			recordset := arguments.Get(0).(*models.Video)
-			*recordset = video
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
 		}
-		database.On("Delete", mock.AnythingOfType("*models.Video")).
-			Return(&gorm.DB{Error: errors.New("unable to delete record from database")})
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Video)
+				*recordset = video
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		database.On("Select", "Annotations").Return(gormFakeSuccess)
+		var triedToBeRemoved *models.Video
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Delete",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				triedToBeRemoved = value.(*models.Video)
+				return &gorm.DB{Error: errors.New("unable to delete record from database")}
+			},
+		)
 
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/videos/%d", video.ID), nil)
@@ -512,8 +819,14 @@ func TestVideosDelete(test *testing.T) {
 
 		// Assert
 		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Equal(&video, triedToBeRemoved)
 		assert.Contains(recorder.Body.String(), "Failed to delete the video")
 		assert.Contains(recorder.Body.String(), "unable to delete record from database")
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(video.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
 		database.AssertExpectations(test)
 	})
 
@@ -522,9 +835,24 @@ func TestVideosDelete(test *testing.T) {
 		server := gin.New()
 		database := new(mocks.MockedDataAccessInterface)
 		videos := &VideosController{Database: database}
-		database.
-			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", "32", current.ID).
-			Return(&gorm.DB{Error: errors.New("no results")})
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Preload", "Annotations").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
 		server.DELETE("/videos/:id", authorise(&current), videos.Delete)
 		request, _ := http.NewRequest(http.MethodDelete, "/videos/32", nil)
 		recorder := httptest.NewRecorder()
@@ -535,6 +863,11 @@ func TestVideosDelete(test *testing.T) {
 		// Assert
 		assert.Equal(http.StatusNotFound, recorder.Code)
 		assert.Contains(recorder.Body.String(), "Video not found")
+		assert.Equal("*models.Video", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal("32", arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
 		database.AssertExpectations(test)
 	})
 }

@@ -132,8 +132,8 @@ func TestMarshalJSON(test *testing.T) {
 		{Input: 45, Expected: `"00:00:45"`},
 		{Input: 7, Expected: `"00:00:07"`},
 		{Input: 36359, Expected: `"10:05:59"`},
-		// Pending test case, it should expect "24:05:01"
-		{Input: 24*3600 + 5*60 + 1, Expected: `"00:05:01"`},
+		{Input: 24*3600 + 5*60 + 1, Expected: `"24:05:01"`},
+		{Input: 132*3600 + 5*60 + 1, Expected: `"132:05:01"`},
 	}
 	for _, testcase := range testcases {
 		test.Run(fmt.Sprintf("Should format correctly from %v to '%s'", testcase.Input, testcase.Expected), func(test *testing.T) {

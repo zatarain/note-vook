@@ -17,12 +17,22 @@ func Setup(server gin.IRouter) {
 		Database: Database,
 	}
 
+	annotations := &controllers.AnnotationsController{
+		Database: Database,
+	}
+
 	server.HEAD("/health", controllers.HealthCheck)
 	server.POST("/signup", users.Signup)
 	server.POST("/login", users.Login)
+
+	// Authorised end-points
 	server.GET("/videos", users.Authorise, videos.Index)
 	server.POST("/videos", users.Authorise, videos.Add)
 	server.GET("/videos/:id", users.Authorise, videos.View)
 	server.PATCH("/videos/:id", users.Authorise, videos.Edit)
 	server.DELETE("/videos/:id", users.Authorise, videos.Delete)
+
+	server.POST("/annotations", users.Authorise, annotations.Add)
+	server.PATCH("/annotations/:id", users.Authorise, annotations.Edit)
+	server.DELETE("/annotations/:id", users.Authorise, annotations.Delete)
 }

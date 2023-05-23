@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/zatarain/note-vook/models"
@@ -72,7 +73,9 @@ func (videos *VideosController) Add(context *gin.Context) {
 func (videos *VideosController) search(video *models.Video, context *gin.Context) bool {
 	id := context.Param("id")
 	user := CurrentUser(context)
-	searching := videos.Database.First(video, "id = ? AND user_id = ?", id, user.ID).Error
+	searching := videos.Database.
+		Preload("Annotations").
+		First(video, "id = ? AND user_id = ?", id, user.ID).Error
 	if searching != nil {
 		context.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error":  "Video not found",
@@ -92,11 +95,6 @@ func (videos *VideosController) View(context *gin.Context) {
 }
 
 func (videos *VideosController) Edit(context *gin.Context) {
-	var video models.Video
-	if !videos.search(&video, context) {
-		return
-	}
-
 	// Trying to bind input from JSON
 	var input EditVideoContract
 	if binding := context.ShouldBindJSON(&input); binding != nil {
@@ -107,8 +105,15 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		return
 	}
 
-	videos.Database.Model(&video)
-	saving := videos.Database.Updates(input).Error
+	// Look for the video
+	var video models.Video
+	if !videos.search(&video, context) {
+		return
+	}
+
+	// Try to save in the database
+	video.UpdatedAt = time.Now()
+	saving := videos.Database.Model(&video).Updates(input).Error
 	if saving != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"error":  "Failed to save the video",
@@ -117,6 +122,7 @@ func (videos *VideosController) Edit(context *gin.Context) {
 		return
 	}
 
+	// Send OK status with updated video
 	context.JSON(http.StatusOK, &video)
 }
 
@@ -126,7 +132,7 @@ func (videos *VideosController) Delete(context *gin.Context) {
 		return
 	}
 
-	deleting := videos.Database.Delete(&video).Error
+	deleting := videos.Database.Select("Annotations").Delete(&video).Error
 	if deleting != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"error":  "Failed to delete the video",
