@@ -63,6 +63,8 @@ This is a small example and it's not taking care about some corner case scenario
 * The environment variables and secrets (e. g. `SECRET_TOKEN_KEY` to encode sign the authorisation token) for API configuration are stored in `.env` files (see [Running section](#-running) below for more information).
 * In the real world the secrets should be stored and provisioned by an external system (e. g. AWS Secret Manager). In order to test and play around with the API you can leave them as blank string in the `.env` files.
 * The videos can only be annotated by the user creator.
+* In order to keep things simple, there is no ACID transactions for the database. We will remove the annotations in cascade though, so if we delete a vide from database we will remove its annotations too.
+* The users won't be able to edit the video ID for an annotation. If the users want to do so, it's better to remove the annotation from the video, then add a new one in the other video. 
 * A video with the same link can be added multiple times by different users.
 * It's been assumed that the annotation type it's some sort of category and each annotation can only be of one type.
 * Users were not part of the original requirements, but I added them as makes simpler the way to explain the authorisation layer.

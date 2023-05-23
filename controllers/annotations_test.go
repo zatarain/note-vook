@@ -392,6 +392,77 @@ func TestAnnotationsAdd(test *testing.T) {
 	})
 }
 
+func TestAnnotationsEdit(test *testing.T) {
+	assert := assert.New(test)
+	gin.SetMode(gin.TestMode)
+	// date, _ := time.Parse(time.DateOnly, "2021-01-01")
+	current := models.User{
+		ID:       3,
+		Nickname: "dummy",
+	}
+
+	// annotation := &models.Annotation{
+	// 	ID:        12,
+	// 	VideoID:   7,
+	// 	Type:      0,
+	// 	Title:     "My annotation",
+	// 	Notes:     "",
+	// 	Start:     15,
+	// 	End:       30,
+	// 	CreatedAt: date,
+	// 	UpdatedAt: date.Add(40 * time.Hour),
+	// }
+
+	test.Run("Should response with HTTP 404 when it doesn't exits in the database", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "Video").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return &gorm.DB{Error: errors.New("no results")}
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		server.PATCH("/annotations/:id", authorise(&current), annotations.Edit)
+		body, _ := json.Marshal(&gin.H{
+			"type":  1,
+			"title": "My dummy annotation",
+			"notes": "My additional notes",
+			"start": "04:45",
+			"end":   "05:30",
+		})
+		request, _ := http.NewRequest(http.MethodPatch, "/annotations/107", bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusNotFound, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Annotation not found")
+
+		assert.Equal("*models.Annotation", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("annotations.id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal("107", arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+		database.AssertExpectations(test)
+	})
+}
+
 func TestAnnotationsDelete(test *testing.T) {
 	assert := assert.New(test)
 	gin.SetMode(gin.TestMode)

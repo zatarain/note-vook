@@ -124,20 +124,19 @@ func (annotations *AnnotationsController) Add(context *gin.Context) {
 }
 
 func (annotations *AnnotationsController) Edit(context *gin.Context) {
-	// Look for the annotation we want to edit
-	var annotation models.Annotation
-	if !annotations.search(context, &annotation) {
-		return
-	}
-
 	// Try to bind the input from JSON
 	var input EditAnnotationContract
-
 	if binding := context.ShouldBindJSON(&input); binding != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"error":  "Failed to read input",
 			"reason": binding.Error(),
 		})
+		return
+	}
+
+	// Look for the annotation we want to edit
+	var annotation models.Annotation
+	if !annotations.search(context, &annotation) {
 		return
 	}
 
