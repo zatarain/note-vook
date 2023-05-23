@@ -131,21 +131,23 @@ func TestAnnotationsAdd(test *testing.T) {
 			server := gin.New()
 			database := new(mocks.MockedDataAccessInterface)
 			annotations := &AnnotationsController{Database: database}
-			lookup := database.
+			database.
 				On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", video.ID, current.ID).
-				Return(&gorm.DB{Error: nil})
-			lookup.RunFn = func(arguments mock.Arguments) {
-				result := arguments.Get(0).(*models.Video)
-				*result = video
-			}
+				Return(&gorm.DB{Error: nil}).Run(
+				func(arguments mock.Arguments) {
+					result := arguments.Get(0).(*models.Video)
+					*result = video
+				},
+			)
 
-			insert := database.
+			database.
 				On("Create", mock.AnythingOfType("*models.Annotation")).
-				Return(&gorm.DB{Error: nil})
-			insert.RunFn = func(arguments mock.Arguments) {
-				recordset := arguments.Get(0).(*models.Annotation)
-				*recordset = testcase.Expected
-			}
+				Return(&gorm.DB{Error: nil}).Run(
+				func(arguments mock.Arguments) {
+					recordset := arguments.Get(0).(*models.Annotation)
+					*recordset = testcase.Expected
+				},
+			)
 
 			server.POST("/annotations", authorise(&current), annotations.Add)
 			body, _ := json.Marshal(testcase.Input)
@@ -173,11 +175,37 @@ func TestAnnotationsAdd(test *testing.T) {
 
 	test.Run("Should NOT save annotation if video doesn't exists for current user", func(test *testing.T) {
 		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+		database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", video.ID, current.ID).
+			Return(&gorm.DB{Error: errors.New("invalid video_id")}).Run(
+			func(arguments mock.Arguments) {
+				result := arguments.Get(0).(*models.Video)
+				*result = video
+			},
+		)
+
+		server.POST("/annotations", authorise(&current), annotations.Add)
+		body, _ := json.Marshal(&gin.H{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    "07m28s",
+			"end":      "07m30s",
+		})
+		request, _ := http.NewRequest(http.MethodPost, "/annotations", bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
 
 		// Act
+		server.ServeHTTP(recorder, request)
 
 		// Assert
-		assert.True(true)
+		assert.Equal(http.StatusNotFound, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Video not found")
+		assert.Contains(recorder.Body.String(), "invalid video_id")
+		database.AssertExpectations(test)
 	})
 
 	test.Run("Should NOT save annotation either Start or End are out of bounds of video Duration", func(test *testing.T) {
@@ -189,13 +217,44 @@ func TestAnnotationsAdd(test *testing.T) {
 		assert.True(true)
 	})
 
-	test.Run("Should response with an error when there is a database error returned", func(test *testing.T) {
+	test.Run("Should response with an error when database returns error", func(test *testing.T) {
 		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+		database.
+			On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", video.ID, current.ID).
+			Return(&gorm.DB{Error: nil}).Run(
+			func(arguments mock.Arguments) {
+				result := arguments.Get(0).(*models.Video)
+				*result = video
+			},
+		)
+
+		database.
+			On("Create", mock.AnythingOfType("*models.Annotation")).
+			Return(&gorm.DB{Error: errors.New("database insertion error")})
+
+		server.POST("/annotations", authorise(&current), annotations.Add)
+		body, _ := json.Marshal(&gin.H{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"notes":    "My additional notes",
+			"start":    "07:28",
+			"end":      "07:30",
+		})
+		request, _ := http.NewRequest(http.MethodPost, "/annotations", bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
 
 		// Act
+		server.ServeHTTP(recorder, request)
 
 		// Assert
-		assert.True(true)
+		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Failed to save the annotation")
+		assert.Contains(recorder.Body.String(), "database insertion error")
+		database.AssertExpectations(test)
 	})
 }
 
