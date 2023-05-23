@@ -500,7 +500,7 @@ func TestVideosEdit(test *testing.T) {
 
 			// Assert
 			assert.Equal(http.StatusOK, recorder.Code)
-			assert.Equal(recorder.Body.Bytes(), expected)
+			assert.Equal(expected, recorder.Body.Bytes())
 
 			assert.Equal("*models.Video", arguments.ValueType)
 			assert.Len(arguments.Conditions, 3)

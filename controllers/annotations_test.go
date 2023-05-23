@@ -425,6 +425,102 @@ func TestAnnotationsEdit(test *testing.T) {
 		Video:     &video,
 	}
 
+	validInputs := []gin.H{
+		{
+			"type":  4,
+			"title": "My dummy annotation edition",
+			"notes": "My additional notes edition",
+			"start": "07:14",
+			"end":   "07:28",
+		},
+		{
+			"title": "My dummy annotation edition",
+			"notes": "My additional notes edition",
+			"start": "07:14",
+			"end":   "07:28",
+		},
+		{
+			"type":  4,
+			"title": "My dummy annotation edition",
+			"start": "07m14s",
+			"end":   7*60 + 28,
+		},
+		{
+			"start": 7*60 + 14,
+			"end":   "07m28s",
+		},
+	}
+	for _, testcase := range validInputs {
+		test.Run("Should response with an error when database returns error", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			annotations := &AnnotationsController{Database: database}
+
+			gormFakeSuccess := &gorm.DB{Error: nil}
+			database.On("Joins", "Video").Return(gormFakeSuccess)
+			var arguments struct {
+				ValueType  string
+				Conditions []interface{}
+			}
+			monkey.PatchInstanceMethod(
+				reflect.TypeOf(gormFakeSuccess),
+				"First",
+				func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+					recordset := value.(*models.Annotation)
+					*recordset = *annotation
+					arguments.ValueType = reflect.TypeOf(value).String()
+					arguments.Conditions = conditions
+					return gormFakeSuccess
+				},
+			)
+			defer monkey.UnpatchAll()
+
+			updatedAt := date.Add(100 * time.Hour)
+			updated := models.Annotation{
+				ID:        annotation.ID,
+				VideoID:   annotation.VideoID,
+				Title:     annotation.Title,
+				Notes:     annotation.Notes,
+				Start:     annotation.Start,
+				End:       annotation.End,
+				Video:     &video,
+				CreatedAt: annotation.CreatedAt,
+				UpdatedAt: updatedAt,
+			}
+			monkey.Patch(time.Now, func() time.Time { return updatedAt })
+			database.On("Model", &updated).Return(gormFakeSuccess)
+			monkey.PatchInstanceMethod(
+				reflect.TypeOf(gormFakeSuccess),
+				"Updates",
+				func(DB *gorm.DB, value interface{}) *gorm.DB {
+					return &gorm.DB{Error: nil}
+				},
+			)
+
+			server.PATCH("/annotations/:id", authorise(&current), annotations.Edit)
+			body, _ := json.Marshal(&testcase)
+			request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+			expected, _ := json.Marshal(&updated)
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusOK, recorder.Code)
+			assert.Equal(expected, recorder.Body.Bytes())
+
+			assert.Equal("*models.Annotation", arguments.ValueType)
+			assert.Len(arguments.Conditions, 3)
+			assert.Equal("annotations.id = ? AND user_id = ?", arguments.Conditions[0])
+			assert.Equal(fmt.Sprint(annotation.ID), arguments.Conditions[1])
+			assert.Equal(current.ID, arguments.Conditions[2])
+
+			database.AssertExpectations(test)
+		})
+	}
+
 	invalidInputs := []struct {
 		Input    gin.H
 		Expected string
@@ -614,12 +710,11 @@ func TestAnnotationsEdit(test *testing.T) {
 
 		server.PATCH("/annotations/:id", authorise(&current), annotations.Edit)
 		body, _ := json.Marshal(&gin.H{
-			"video_id": video.ID,
-			"type":     4,
-			"title":    "My dummy annotation",
-			"notes":    "My additional notes",
-			"start":    "07:14",
-			"end":      "07:28",
+			"type":  4,
+			"title": "My dummy annotation",
+			"notes": "My additional notes",
+			"start": "07:14",
+			"end":   "07:28",
 		})
 		request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
 		recorder := httptest.NewRecorder()
