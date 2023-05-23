@@ -1,13 +1,4 @@
----
-title: Project `NoteVook`
-author: [Ulises Tirado Zatarain]
-date: 2023-05-19
-subject: Markdown
-keywords: [golang, api, sqlite]
-lang: en-gb
-...
-
-# 🧑🏽‍💻 Project: `NoteVook` 
+# 🧑🏽‍💻 Project: `NoteVook`
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![CI/CD Pipeline](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml/badge.svg)](https://github.com/zatarain/note-vook/actions/workflows/pipeline.yml) [![codecov](https://codecov.io/gh/zatarain/note-vook/branch/main/graph/badge.svg?token=bufQuVyLCi)](https://codecov.io/gh/zatarain/note-vook) [![Go Report Card](https://goreportcard.com/badge/github.com/zatarain/note-vook)](https://goreportcard.com/report/github.com/zatarain/note-vook)
 
 This project aims to be an exercise to discuss about software engineering technical topics like software development, pair programming, testing, deployment, etcetera. More specifically, to discuss the development of an [API (Application Programming Interface)][what-is-api] to **manage annotations for videos** implemented written in [go programming language][go-lang].
