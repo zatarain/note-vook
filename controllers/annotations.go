@@ -70,8 +70,8 @@ func (annotations *AnnotationsController) CheckInterval(
 ) bool {
 	if !isInRange(start, duration) || !isInRange(end, duration) {
 		context.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error":  "Invalid interval",
-			"reason": "`start` and `end` must be positive and less or equal than video `duration`",
+			"error":  "Invalid time interval",
+			"reason": "start and end must be positive and less or equal than video duration",
 		})
 		return false
 	}

@@ -150,7 +150,7 @@ func TestAnnotationsAdd(test *testing.T) {
 			)
 
 			server.POST("/annotations", authorise(&current), annotations.Add)
-			body, _ := json.Marshal(testcase.Input)
+			body, _ := json.Marshal(&testcase.Input)
 			request, _ := http.NewRequest(http.MethodPost, "/annotations", bytes.NewBuffer(body))
 			recorder := httptest.NewRecorder()
 			expected, _ := json.Marshal(&testcase.Expected)
@@ -164,14 +164,95 @@ func TestAnnotationsAdd(test *testing.T) {
 			database.AssertExpectations(test)
 		})
 	}
-	test.Run("Should NOT save annotation on invalid body input", func(test *testing.T) {
-		// Arrange
 
-		// Act
+	invalidInputs := []struct {
+		Input    gin.H
+		Expected string
+	}{
+		{
+			Input: gin.H{
+				"video_id": video.ID,
+				"start":    7*60 + 20,
+				"end":      "07:30",
+			},
+			Expected: "Field validation for 'Title' failed on the 'required' tag",
+		},
+		{
+			Input: gin.H{
+				"video_id": "fake.ID",
+				"type":     1,
+				"title":    "My dummy annotation",
+				"notes":    "My additional notes",
+				"start":    "07:28",
+				"end":      "07:30",
+			},
+			Expected: "cannot unmarshal string into Go struct field AddAnnotationContract.video_id of type uint",
+		},
+		{
+			Input: gin.H{
+				"video_id": video.ID,
+				"type":     "wrong",
+				"title":    "My dummy annotation",
+				"notes":    "My additional notes",
+				"start":    10,
+				"end":      30,
+			},
+			Expected: "cannot unmarshal string into Go struct field AddAnnotationContract.type of type uint",
+		},
+		{
+			Input: gin.H{
+				"video_id": video.ID,
+				"type":     1,
+				"title":    "My dummy annotation",
+				"start":    "7-45",
+				"end":      "07m30s",
+			},
+			Expected: "time: unknown unit",
+		},
+		{
+			Input: gin.H{
+				"video_id": video.ID,
+				"type":     1,
+				"title":    "My dummy annotation",
+				"start":    "7:28",
+				"end":      "7-30",
+			},
+			Expected: "time: unknown unit",
+		},
+		{
+			Input: gin.H{
+				"video_id": video.ID,
+				"type":     1,
+				"title":    "My dummy annotation",
+				"start":    "01:25",
+				"end":      "01:10",
+			},
+			Expected: "Field validation for 'Start' failed on the 'ltefield' tag",
+		},
+	}
 
-		// Assert
-		assert.True(true)
-	})
+	for _, testcase := range invalidInputs {
+		test.Run("Should NOT save annotation on invalid body input", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			annotations := &AnnotationsController{Database: database}
+
+			server.POST("/annotations", authorise(&current), annotations.Add)
+			body, _ := json.Marshal(&testcase.Input)
+			request, _ := http.NewRequest(http.MethodPost, "/annotations", bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), "Failed to read input")
+			assert.Contains(recorder.Body.String(), testcase.Expected)
+			database.AssertExpectations(test)
+		})
+	}
 
 	test.Run("Should NOT save annotation if video doesn't exists for current user", func(test *testing.T) {
 		// Arrange
@@ -208,14 +289,67 @@ func TestAnnotationsAdd(test *testing.T) {
 		database.AssertExpectations(test)
 	})
 
-	test.Run("Should NOT save annotation either Start or End are out of bounds of video Duration", func(test *testing.T) {
-		// Arrange
+	invalidTimeRanges := []gin.H{
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    video.Duration + 7,
+			"end":      video.Duration + 10,
+		},
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    7,
+			"end":      video.Duration + 10,
+		},
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    -7,
+			"end":      video.Duration + 10,
+		},
+		{
+			"video_id": video.ID,
+			"type":     1,
+			"title":    "My dummy annotation",
+			"start":    -17,
+			"end":      video.Duration - 10,
+		},
+	}
 
-		// Act
+	for _, testcase := range invalidTimeRanges {
+		test.Run("Should NOT save annotation either Start or End are out of bounds of video Duration", func(test *testing.T) {
+			// Arrange
+			server := gin.New()
+			database := new(mocks.MockedDataAccessInterface)
+			annotations := &AnnotationsController{Database: database}
+			database.
+				On("First", mock.AnythingOfType("*models.Video"), "id = ? AND user_id = ?", video.ID, current.ID).
+				Return(&gorm.DB{Error: nil}).Run(
+				func(arguments mock.Arguments) {
+					result := arguments.Get(0).(*models.Video)
+					*result = video
+				},
+			)
 
-		// Assert
-		assert.True(true)
-	})
+			server.POST("/annotations", authorise(&current), annotations.Add)
+			body, _ := json.Marshal(&testcase)
+			request, _ := http.NewRequest(http.MethodPost, "/annotations", bytes.NewBuffer(body))
+			recorder := httptest.NewRecorder()
+
+			// Act
+			server.ServeHTTP(recorder, request)
+
+			// Assert
+			assert.Equal(http.StatusBadRequest, recorder.Code)
+			assert.Contains(recorder.Body.String(), "Invalid time interval")
+			assert.Contains(recorder.Body.String(), "start and end must be positive and less or equal than video duration")
+			database.AssertExpectations(test)
+		})
+	}
 
 	test.Run("Should response with an error when database returns error", func(test *testing.T) {
 		// Arrange
