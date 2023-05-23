@@ -564,6 +564,90 @@ func TestAnnotationsEdit(test *testing.T) {
 		})
 	}
 
+	test.Run("Should response with an error when database returns error", func(test *testing.T) {
+		// Arrange
+		server := gin.New()
+		database := new(mocks.MockedDataAccessInterface)
+		annotations := &AnnotationsController{Database: database}
+
+		gormFakeSuccess := &gorm.DB{Error: nil}
+		database.On("Joins", "Video").Return(gormFakeSuccess)
+		var arguments struct {
+			ValueType  string
+			Conditions []interface{}
+		}
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"First",
+			func(DB *gorm.DB, value interface{}, conditions ...interface{}) *gorm.DB {
+				recordset := value.(*models.Annotation)
+				*recordset = *annotation
+				arguments.ValueType = reflect.TypeOf(value).String()
+				arguments.Conditions = conditions
+				return gormFakeSuccess
+			},
+		)
+		defer monkey.UnpatchAll()
+
+		updatedAt := date.Add(100 * time.Hour)
+		monkey.Patch(time.Now, func() time.Time { return updatedAt })
+		database.On("Model", &models.Annotation{
+			ID:        annotation.ID,
+			VideoID:   annotation.VideoID,
+			Title:     annotation.Title,
+			Notes:     annotation.Notes,
+			Start:     annotation.Start,
+			End:       annotation.End,
+			Video:     &video,
+			CreatedAt: annotation.CreatedAt,
+			UpdatedAt: updatedAt,
+		}).Return(gormFakeSuccess)
+		var input EditAnnotationContract
+		monkey.PatchInstanceMethod(
+			reflect.TypeOf(gormFakeSuccess),
+			"Updates",
+			func(DB *gorm.DB, value interface{}) *gorm.DB {
+				input = value.(EditAnnotationContract)
+				return &gorm.DB{Error: errors.New("unable to update annotations table")}
+			},
+		)
+
+		server.PATCH("/annotations/:id", authorise(&current), annotations.Edit)
+		body, _ := json.Marshal(&gin.H{
+			"video_id": video.ID,
+			"type":     4,
+			"title":    "My dummy annotation",
+			"notes":    "My additional notes",
+			"start":    "07:14",
+			"end":      "07:28",
+		})
+		request, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
+		recorder := httptest.NewRecorder()
+
+		// Act
+		server.ServeHTTP(recorder, request)
+
+		// Assert
+		assert.Equal(http.StatusBadRequest, recorder.Code)
+		assert.Contains(recorder.Body.String(), "Failed to save the annotation")
+		assert.Contains(recorder.Body.String(), "unable to update annotations table")
+
+		assert.Equal("*models.Annotation", arguments.ValueType)
+		assert.Len(arguments.Conditions, 3)
+		assert.Equal("annotations.id = ? AND user_id = ?", arguments.Conditions[0])
+		assert.Equal(fmt.Sprint(annotation.ID), arguments.Conditions[1])
+		assert.Equal(current.ID, arguments.Conditions[2])
+
+		assert.Equal(EditAnnotationContract{
+			Type:  4,
+			Title: "My dummy annotation",
+			Notes: "My additional notes",
+			Start: 7*60 + 14,
+			End:   7*60 + 28,
+		}, input)
+		database.AssertExpectations(test)
+	})
+
 	test.Run("Should response with HTTP 404 when it doesn't exits in the database", func(test *testing.T) {
 		// Arrange
 		server := gin.New()
