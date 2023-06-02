@@ -38,8 +38,8 @@ The API should be able to manage a database for the videos and each video may ha
 
  Allowing the client to perform following operations:
 
- * **List all the vide.** It should return the list of all videos in the system.
- * **Create a vide.** It should insert a new record for video provided by the client that includes some metadata.
+ * **List all the videos.** It should return the list of all videos in the system.
+ * **Create a video.** It should insert a new record for video provided by the client that includes some metadata.
  * **Update a video.** It should allow the client to update the information of a given video.
  * **Delete a video.** The API should provide an end-point to delete videos from the system.
  * **View video details.** It should show the details of a single video provided by the client.
